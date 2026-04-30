@@ -1,5 +1,3 @@
-// components/inventory/ProductCard.tsx
-
 interface ProductProps {
   name: string;
   quantity: number;

@@ -1,162 +1,86 @@
 'use client';
+
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { supabase } from '@/lib/supabase'; 
+import { registerAction } from '../actions';
 
 export default function RegisterPage() {
-  const router = useRouter();
-  
-  // États pour les champs
-  const [formData, setFormData] = useState({ fullName: '', boutiqueName: '', email: '', password: '' });
-  
-  // États pour les erreurs et l'interface
-  const [errors, setErrors] = useState({ fullName: '', boutiqueName: '', email: '', password: '' });
-  const [globalMessage, setGlobalMessage] = useState({ type: '', text: '' });
+  const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErrors({ fullName: '', boutiqueName: '', email: '', password: '' });
-    setGlobalMessage({ type: '', text: '' });
-
-    // 1. Validation obligatoire
-    let hasError = false;
-    const newErrors = { fullName: '', boutiqueName: '', email: '', password: '' };
-
-    if (!formData.fullName) { newErrors.fullName = 'Le nom est obligatoire'; hasError = true; }
-    if (!formData.boutiqueName) { newErrors.boutiqueName = 'Le nom de la boutique est obligatoire'; hasError = true; }
-    if (!formData.email) { newErrors.email = "L'email est obligatoire"; hasError = true; }
-    if (!formData.password) { newErrors.password = 'Le mot de passe est obligatoire'; hasError = true; }
-
-    if (hasError) {
-      setErrors(newErrors);
-      return;
-    }
-
-    // 2. Envoi à Supabase
+  const handleSubmit = async (formData: FormData) => {
     setIsLoading(true);
+    setErrorMessage('');
     
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: formData.email,
-      password: formData.password,
-    });
-
-    if (error) {
-      setGlobalMessage({ type: 'error', text: "Erreur de connexion." });
-    } else {
-      // ICI : On utilise enfin 'data' !
-      // On récupère le rôle stocké dans les métadonnées de l'utilisateur
-      const userRole = data.user?.user_metadata?.role;
-
-      if (userRole === 'owner') {
-        router.push('/dashboard');
-      } else {
-        router.push('/dashboard/pending');
-      }
+    formData.append('role', activeTab); // On ajoute le rôle sélectionné
+    
+    // Appel de la Server Action
+    const result = await registerAction(formData);
+    
+    if (result?.error) {
+      setErrorMessage(result.error);
+      setIsLoading(false);
     }
-
-    setIsLoading(false);
-
-    // 3. Gestion du résultat
-    if (error) {
-      setGlobalMessage({ type: 'error', text: "Échec de l'inscription : " + error.message });
-      setFormData({ fullName: '', boutiqueName: '', email: '', password: '' }); // Vide les champs
-    } else {
-      setGlobalMessage({ type: 'success', text: "Succès ! Redirection en cours..." });
-      setFormData({ fullName: '', boutiqueName: '', email: '', password: '' }); // Vide les champs
-      
-      // Redirection après un court délai pour voir le message de succès
-      setTimeout(() => {
-        router.push('/dashboard'); // Redirige vers le dashboard proprio
-      }, 1500);
-    }
+    // Si succès, redirect() est géré par le serveur
   };
 
   return (
     <GlassCard>
-      <h1 className="text-2xl font-bold text-gray-800 text-center mb-2">Devenir Propriétaire</h1>
-      <p className="text-sm text-gray-600 text-center mb-6">Commencez à gérer votre stock intelligemment</p>
-      
-      {/* Messages globaux (Succès ou Échec) */}
-      {globalMessage.text && (
-        <div className={`p-3 mb-4 rounded-xl text-sm font-bold text-center ${globalMessage.type === 'error' ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-700'}`}>
-          {globalMessage.text}
+      <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">Créer un compte</h1>
+
+      {/* ONGLETS FLUIDES */}
+      <div className="relative flex w-full bg-white/40 p-1 rounded-xl mb-6 shadow-inner border border-white/50">
+        <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-in-out ${activeTab === 'employee' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}></div>
+        <button type="button" onClick={() => setActiveTab('owner')} className={`relative z-10 w-1/2 py-2 text-sm font-bold transition-colors duration-300 ${activeTab === 'owner' ? 'text-purple-700' : 'text-gray-500'}`}>Propriétaire</button>
+        <button type="button" onClick={() => setActiveTab('employee')} className={`relative z-10 w-1/2 py-2 text-sm font-bold transition-colors duration-300 ${activeTab === 'employee' ? 'text-purple-700' : 'text-gray-500'}`}>Employé</button>
+      </div>
+
+      {errorMessage && (
+        <div className="p-3 mb-4 rounded-xl text-sm font-bold text-center bg-red-100 text-red-600 border border-red-200">
+          {errorMessage}
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Champ Nom */}
+      {/* Le formulaire utilise l'attribut action de Next.js */}
+      <form action={handleSubmit} className="space-y-4">
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Nom Complet</label>
-          <input 
-            type="text" 
-            value={formData.fullName}
-            onChange={(e) => setFormData({...formData, fullName: e.target.value})}
-            placeholder="Ex: Jean Kabulo" 
-            className={`w-full p-3 rounded-xl bg-white/60 border ${errors.fullName ? 'border-red-500' : 'border-white/40'} text-gray-800 placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner`}
-          />
-          {errors.fullName && <p className="text-red-500 text-xs mt-1 ml-1">{errors.fullName}</p>}
+          <input type="text" name="fullName" required placeholder="Ex: Jean Kabulo" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
         </div>
 
-        {/* Champ Boutique */}
-        <div className="w-full">
-          <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Ma Boutique</label>
-          <input 
-            type="text" 
-            value={formData.boutiqueName}
-            onChange={(e) => setFormData({...formData, boutiqueName: e.target.value})}
-            placeholder="Ex: Dépôt Victoire" 
-            className={`w-full p-3 rounded-xl bg-white/60 border ${errors.boutiqueName ? 'border-red-500' : 'border-white/40'} text-gray-800 placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner`}
-          />
-          {errors.boutiqueName && <p className="text-red-500 text-xs mt-1 ml-1">{errors.boutiqueName}</p>}
-        </div>
+        {activeTab === 'owner' ? (
+          <div className="w-full animate-in fade-in slide-in-from-right-4 duration-300">
+            <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Nom de la Boutique</label>
+            <input type="text" name="boutiqueName" required placeholder="Ex: Dépôt Victoire" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
+          </div>
+        ) : (
+          <div className="w-full animate-in fade-in slide-in-from-left-4 duration-300">
+            <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Code Boutique (Donné par le gérant)</label>
+            <input type="text" name="boutiqueCode" required placeholder="LIKI-XXXXXX" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner uppercase" />
+          </div>
+        )}
 
-        {/* Champ Email */}
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Email</label>
-          <input 
-            type="email" 
-            value={formData.email}
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            placeholder="patron@boutique.com" 
-            className={`w-full p-3 rounded-xl bg-white/60 border ${errors.email ? 'border-red-500' : 'border-white/40'} text-gray-800 placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner`}
-          />
-          {errors.email && <p className="text-red-500 text-xs mt-1 ml-1">{errors.email}</p>}
+          <input type="email" name="email" required placeholder="votre@email.com" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
         </div>
 
-        {/* Champ Password */}
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Mot de passe</label>
-          <input 
-            type="password" 
-            value={formData.password}
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            placeholder="••••••••" 
-            className={`w-full p-3 rounded-xl bg-white/60 border ${errors.password ? 'border-red-500' : 'border-white/40'} text-gray-800 placeholder:text-gray-500 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner`}
-          />
-          {errors.password && <p className="text-red-500 text-xs mt-1 ml-1">{errors.password}</p>}
+          <input type="password" name="password" required minLength={6} placeholder="••••••••" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
         </div>
 
-        <button 
-          disabled={isLoading}
-          type="submit"
-          className="w-full flex justify-center items-center bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition-all transform active:scale-95 mt-2 disabled:opacity-70 disabled:cursor-not-allowed"
-        >
-          {isLoading ? (
-            <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-          ) : "CRÉER MA BOUTIQUE"}
+        <button disabled={isLoading} type="submit" className="w-full flex justify-center items-center bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition-all transform active:scale-95 mt-2 disabled:opacity-70">
+          {isLoading ? "CHARGEMENT..." : "S'INSCRIRE"}
         </button>
       </form>
 
       <div className="mt-6 text-center text-sm">
-        <p className="text-gray-600">Déjà inscrit ?</p>
+        <p className="text-gray-600">Déjà un compte ?</p>
         <Link href="/auth/login" className="font-bold text-purple-700 hover:underline">
-          Retour à la connexion
+          Se connecter
         </Link>
       </div>
     </GlassCard>
