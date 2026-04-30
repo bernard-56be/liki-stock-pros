@@ -14,23 +14,20 @@ export default function RegisterPage() {
     setIsLoading(true);
     setErrorMessage('');
     
-    formData.append('role', activeTab); // On ajoute le rôle sélectionné
+    formData.append('role', activeTab);
     
-    // Appel de la Server Action
     const result = await registerAction(formData);
     
     if (result?.error) {
       setErrorMessage(result.error);
       setIsLoading(false);
     }
-    // Si succès, redirect() est géré par le serveur
   };
 
   return (
     <GlassCard>
       <h1 className="text-2xl font-bold text-gray-800 text-center mb-6">Créer un compte</h1>
 
-      {/* ONGLETS FLUIDES */}
       <div className="relative flex w-full bg-white/40 p-1 rounded-xl mb-6 shadow-inner border border-white/50">
         <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white rounded-lg shadow-sm transition-transform duration-300 ease-in-out ${activeTab === 'employee' ? 'translate-x-[calc(100%+4px)]' : 'translate-x-0'}`}></div>
         <button type="button" onClick={() => setActiveTab('owner')} className={`relative z-10 w-1/2 py-2 text-sm font-bold transition-colors duration-300 ${activeTab === 'owner' ? 'text-purple-700' : 'text-gray-500'}`}>Propriétaire</button>
@@ -43,7 +40,6 @@ export default function RegisterPage() {
         </div>
       )}
 
-      {/* Le formulaire utilise l'attribut action de Next.js */}
       <form action={handleSubmit} className="space-y-4">
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Nom Complet</label>
