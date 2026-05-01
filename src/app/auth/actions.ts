@@ -1,7 +1,6 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { redirect } from 'next/navigation';
 
 function getSafeInternalRedirectPath(rawValue: string) {
   const nextPath = rawValue.trim();
@@ -92,11 +91,19 @@ export async function loginAction(formData: FormData) {
     isAccepted: Boolean(safeNextPath),
   });
 
-  if (profile.role === 'owner' || profile.status === 'active') {
-    redirect(safeNextPath ?? '/dashboard');
-  } else {
-    redirect('/dashboard/pending');
+  if (safeNextPath) {
+    return { success: true as const, redirectTo: safeNextPath };
   }
+
+  if (profile.role === 'owner') {
+    return { success: true as const, redirectTo: '/dashboard/owner/inventaire' };
+  }
+
+  if (profile.role === 'employee' && profile.status === 'active') {
+    return { success: true as const, redirectTo: '/dashboard/employee/ventes' };
+  }
+
+  return { success: true as const, redirectTo: '/dashboard/pending' };
 }
 
 export async function registerAction(formData: FormData) {
@@ -231,8 +238,8 @@ export async function registerAction(formData: FormData) {
   }
 
   if (role === 'owner') {
-    redirect('/dashboard');
-  } else {
-    redirect('/dashboard/pending');
+    return { success: true as const, redirectTo: '/dashboard/owner/inventaire' };
   }
+
+  return { success: true as const, redirectTo: '/dashboard/pending' };
 }

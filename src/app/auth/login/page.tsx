@@ -2,11 +2,12 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { loginAction } from '../actions';
 
 function LoginPageContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
@@ -18,10 +19,13 @@ function LoginPageContent() {
     setErrorMessage('');
     
     const result = await loginAction(formData);
-    
+
     if (result?.error) {
       setErrorMessage(result.error);
       setIsLoading(false);
+    } else if (result?.success && result?.redirectTo) {
+      router.push(result.redirectTo);
+      router.refresh();
     }
   };
 
