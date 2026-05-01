@@ -1,14 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { loginAction } from '../actions';
 
-export default function LoginPage() {
+function LoginPageContent() {
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const nextPath = searchParams.get('next') ?? '';
 
   const handleSubmit = async (formData: FormData) => {
     setIsLoading(true);
@@ -39,6 +42,7 @@ export default function LoginPage() {
       )}
 
       <form action={handleSubmit} className="space-y-4">
+        <input type="hidden" name="next" value={nextPath} />
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Email</label>
           <input type="email" name="email" required placeholder={activeTab === 'owner' ? "patron@boutique.com" : "employe@boutique.com"} className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-900 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
@@ -61,5 +65,13 @@ export default function LoginPage() {
         </Link>
       </div>
     </GlassCard>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Chargement...</div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
