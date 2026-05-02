@@ -91,19 +91,22 @@ export async function loginAction(formData: FormData) {
     isAccepted: Boolean(safeNextPath),
   });
 
+  // Force le rafraîchissement des cookies de session avant de répondre au client
+  await supabase.auth.getUser();
+
   if (safeNextPath) {
-    return { success: true as const, redirectTo: safeNextPath };
+    return { success: true, redirectTo: safeNextPath };
   }
 
   if (profile.role === 'owner') {
-    return { success: true as const, redirectTo: '/dashboard/owner/inventaire' };
+    return { success: true, redirectTo: '/dashboard/owner/inventaire' };
   }
 
   if (profile.role === 'employee' && profile.status === 'active') {
-    return { success: true as const, redirectTo: '/dashboard/employee/ventes' };
+    return { success: true, redirectTo: '/dashboard/employee/ventes' };
   }
 
-  return { success: true as const, redirectTo: '/dashboard/pending' };
+  return { success: true, redirectTo: '/dashboard/pending' };
 }
 
 export async function registerAction(formData: FormData) {

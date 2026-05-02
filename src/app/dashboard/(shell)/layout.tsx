@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation';
 import { Sidebar, type DashboardRole } from '@/components/layout/Sidebar';
 import { createClient } from '@/lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DashboardShellLayout({ children }: { children: ReactNode }) {
   const supabase = await createClient();
   const {

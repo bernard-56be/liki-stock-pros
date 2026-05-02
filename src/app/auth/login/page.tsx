@@ -14,18 +14,35 @@ function LoginPageContent() {
   const [errorMessage, setErrorMessage] = useState('');
   const nextPath = searchParams.get('next') ?? '';
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsLoading(true);
     setErrorMessage('');
-    
-    const result = await loginAction(formData);
 
-    if (result?.error) {
-      setErrorMessage(result.error);
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await loginAction(formData);
+
+      if (result?.error) {
+        setErrorMessage(result.error);
+        setIsLoading(false);
+      } else if (result?.success && result?.redirectTo) {
+        router.refresh();
+
+        setTimeout(() => {
+          router.push(result.redirectTo);
+        }, 100);
+
+        setTimeout(() => {
+          window.location.href = result.redirectTo;
+        }, 2000);
+      } else {
+        setErrorMessage('Erreur inattendue de redirection.');
+        setIsLoading(false);
+      }
+    } catch {
+      setErrorMessage('Erreur de connexion au serveur.');
       setIsLoading(false);
-    } else if (result?.success && result?.redirectTo) {
-      router.push(result.redirectTo);
-      router.refresh();
     }
   };
 
@@ -45,7 +62,7 @@ function LoginPageContent() {
         </div>
       )}
 
-      <form action={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="next" value={nextPath} />
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Email</label>
