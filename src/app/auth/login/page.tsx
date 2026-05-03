@@ -2,12 +2,13 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { loginAction } from '../actions';
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -24,6 +25,12 @@ function LoginPageContent() {
 
       if (result?.error) {
         setErrorMessage(result.error);
+        setIsLoading(false);
+      } else if (result?.success && result?.redirectTo) {
+        // Redirection côté client pour éviter l'exposition des identifiants
+        router.push(result.redirectTo);
+      } else {
+        setErrorMessage('Réponse inattendue du serveur.');
         setIsLoading(false);
       }
     } catch (err) {

@@ -35,6 +35,9 @@ export async function loginAction(formData: FormData) {
     return { error: 'Email ou mot de passe incorrect.' };
   }
 
+  // Force la création des cookies d'authentification
+  await supabase.auth.getUser();
+
   const supabaseAdmin = createAdminClient();
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
@@ -46,6 +49,7 @@ export async function loginAction(formData: FormData) {
     return { error: 'Erreur lors de la récupération de votre profil.' };
   }
 
+  // Double vérification pour garantir la persistance des cookies
   await supabase.auth.getUser();
 
   let redirectTo: string;
@@ -59,7 +63,8 @@ export async function loginAction(formData: FormData) {
     redirectTo = '/dashboard/pending';
   }
 
-  redirect(redirectTo);
+  // Retourner succès au lieu de redirect pour éviter l'exposition des identifiants
+  return { success: true, redirectTo };
 }
 
 export async function registerAction(formData: FormData) {
@@ -118,6 +123,9 @@ export async function registerAction(formData: FormData) {
 
   createdAuthUserId = authData.user.id;
 
+  // Force la création des cookies d'authentification après inscription
+  await supabase.auth.getUser();
+
   try {
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
@@ -174,8 +182,8 @@ export async function registerAction(formData: FormData) {
   await supabase.auth.getUser();
 
   if (role === 'owner') {
-    redirect('/dashboard/owner/inventaire');
+    return { success: true, redirectTo: '/dashboard/owner/inventaire' };
   }
   
-  redirect('/dashboard/pending');
+  return { success: true, redirectTo: '/dashboard/pending' };
 }
