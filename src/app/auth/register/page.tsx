@@ -2,12 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { registerAction } from '../actions';
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -18,14 +16,17 @@ export default function RegisterPage() {
     
     formData.append('role', activeTab);
     
-    const result = await registerAction(formData);
+    try {
+      const result = await registerAction(formData);
 
-    if (result?.error) {
-      setErrorMessage(result.error);
+      if (result?.error) {
+        setErrorMessage(result.error);
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Register error:', err);
+      setErrorMessage('Erreur lors de l\'inscription.');
       setIsLoading(false);
-    } else if (result?.success && result?.redirectTo) {
-      router.push(result.redirectTo);
-      router.refresh();
     }
   };
 
