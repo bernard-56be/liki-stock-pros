@@ -15,21 +15,25 @@ export default async function DashboardShellLayout({ children }: { children: Rea
     redirect('/auth/login');
   }
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('role, status')
-    .eq('id', user.id)
-    .single();
+  // Utiliser d'abord le rôle des métadonnées pour éviter les problèmes de RLS/latence
+  let role = user.user_metadata?.role as DashboardRole;
 
-  if (error || !profile) {
-    redirect('/auth/login');
+  if (!role) {
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !profile) {
+      redirect('/auth/login');
+    }
+    role = profile.role as DashboardRole;
   }
 
-  if (profile.role !== 'owner' && profile.role !== 'employee') {
+  if (role !== 'owner' && role !== 'employee') {
     redirect('/auth/login');
   }
-
-  const role = profile.role as DashboardRole;
 
   return (
     <div className="flex min-h-screen w-full flex-1 flex-col md:flex-row">

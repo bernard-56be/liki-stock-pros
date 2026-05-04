@@ -12,14 +12,19 @@ export default async function OwnerSectionLayout({ children }: { children: React
     redirect('/auth/login');
   }
 
-  const { data: profile, error } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
+  const role = user.user_metadata?.role;
 
-  if (error || !profile || profile.role !== 'owner') {
-    redirect('/dashboard');
+  if (role !== 'owner') {
+    // Double vérification avec la DB si les métadonnées sont absentes
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.role !== 'owner') {
+      redirect('/dashboard');
+    }
   }
 
   return children;

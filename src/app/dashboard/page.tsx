@@ -11,21 +11,36 @@ export default async function DashboardIndexPage() {
     redirect('/auth/login');
   }
 
-  const { data: profile, error } = await supabase
+  const role = user.user_metadata?.role;
+
+  if (role === 'owner') {
+    redirect('/dashboard/owner/inventaire');
+  }
+
+  if (role === 'employee') {
+    // Pour l'employé, on doit vérifier le statut dans la DB
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('status')
+      .eq('id', user.id)
+      .single();
+
+    if (profile?.status !== 'active') {
+      redirect('/dashboard/pending');
+    }
+    redirect('/dashboard/employee/ventes');
+  }
+
+  // Fallback si pas de métadonnées
+  const { data: profile } = await supabase
     .from('profiles')
     .select('role, status')
     .eq('id', user.id)
     .single();
 
-  if (error || !profile) {
-    redirect('/auth/login');
-  }
-
-  if (profile.role === 'owner') {
+  if (profile?.role === 'owner') {
     redirect('/dashboard/owner/inventaire');
-  }
-
-  if (profile.role === 'employee') {
+  } else if (profile?.role === 'employee') {
     if (profile.status !== 'active') {
       redirect('/dashboard/pending');
     }
