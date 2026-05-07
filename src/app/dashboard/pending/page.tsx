@@ -36,7 +36,7 @@ export default function PendingPage() {
       }
 
       if (profile.status === 'active') {
-        router.push('/dashboard/vendeur'); // Redirection vers le POS du vendeur
+        router.push('/dashboard/employee/ventes');
         return;
       }
 
@@ -56,7 +56,7 @@ export default function PendingPage() {
           (payload: { new: { status: string } }) => {
             const newStatus = payload.new.status;
             if (newStatus === 'active') {
-              router.push('/dashboard/vendeur');
+              router.push('/dashboard/employee/ventes');
             } else if (newStatus === 'rejected') {
               setError("Votre compte a été refusé par le propriétaire.");
             }

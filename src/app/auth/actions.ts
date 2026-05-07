@@ -1,7 +1,6 @@
 'use server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { redirect } from 'next/navigation';
 
 function getSafeInternalRedirectPath(rawValue: string) {
   const nextPath = rawValue.trim();
@@ -32,71 +31,39 @@ export async function loginAction(formData: FormData) {
   });
 
   if (authError || !authData.user) {
-    console.error('[loginAction] Echec signInWithPassword', {
-      email,
-      authErrorMessage: authError?.message,
-      authErrorStatus: authError?.status,
-      hasUser: Boolean(authData?.user),
-    });
     return { error: 'Email ou mot de passe incorrect.' };
   }
 
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  if (userError || !userData.user) {
-    console.error('[loginAction] Session auth introuvable après login', {
-      email,
-      userErrorMessage: userError?.message,
-      userErrorStatus: userError?.status,
-      signedInUserId: authData.user.id,
-    });
-  }
+  // Force la création des cookies d'authentification
+  await supabase.auth.getUser();
 
-  // On utilise supabaseAdmin pour contourner la latence de propagation du cookie de session face aux RLS
   const supabaseAdmin = createAdminClient();
-  console.info('[loginAction] Lecture profil via supabaseAdmin', {
-    email,
-    userId: authData.user.id,
-  });
   const { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('role, status')
     .eq('id', authData.user.id)
     .single();
 
-  console.info('[loginAction] Résultat lecture profil via supabaseAdmin', {
-    email,
-    userId: authData.user.id,
-    profileFound: Boolean(profile),
-    profileErrorCode: profileError?.code,
-    profileErrorMessage: profileError?.message,
-  });
-
   if (profileError || !profile) {
-    console.error('[loginAction] Erreur récupération profil', {
-      email,
-      userId: authData.user.id,
-      sessionUserId: userData?.user?.id ?? null,
-      profileErrorCode: profileError?.code,
-      profileErrorMessage: profileError?.message,
-      profileErrorDetails: profileError?.details,
-      profileErrorHint: profileError?.hint,
-      profileFound: Boolean(profile),
-    });
     return { error: 'Erreur lors de la récupération de votre profil.' };
   }
 
-  console.info('[loginAction] Paramètre next évalué', {
-    email,
-    rawNextPath,
-    safeNextPath,
-    isAccepted: Boolean(safeNextPath),
-  });
+  // Double vérification pour garantir la persistance des cookies
+  await supabase.auth.getUser();
 
-  if (profile.role === 'owner' || profile.status === 'active') {
-    redirect(safeNextPath ?? '/dashboard');
+  let redirectTo: string;
+  if (safeNextPath) {
+    redirectTo = safeNextPath;
+  } else if (profile.role === 'owner') {
+    redirectTo = '/dashboard/owner/inventaire';
+  } else if (profile.role === 'employee' && profile.status === 'active') {
+    redirectTo = '/dashboard/employee/ventes';
   } else {
-    redirect('/dashboard/pending');
+    redirectTo = '/dashboard/pending';
   }
+
+  // Retourner succès au lieu de redirect pour éviter l'exposition des identifiants
+  return { success: true, redirectTo };
 }
 
 export async function registerAction(formData: FormData) {
@@ -155,6 +122,9 @@ export async function registerAction(formData: FormData) {
 
   createdAuthUserId = authData.user.id;
 
+  // Force la création des cookies d'authentification après inscription
+  await supabase.auth.getUser();
+
   try {
     const { error: profileInsertError } = await supabaseAdmin
       .from('profiles')
@@ -169,31 +139,20 @@ export async function registerAction(formData: FormData) {
         },
       ]);
 
-    if (profileInsertError) {
-      throw profileInsertError;
-    }
+    if (profileInsertError) throw profileInsertError;
 
     if (role === 'owner') {
       const boutiqueName = String(formData.get('boutiqueName') ?? '').trim();
-      if (!boutiqueName) {
-        return { error: 'Le nom de boutique est requis pour un propriétaire.' };
-      }
+      if (!boutiqueName) return { error: 'Le nom de boutique est requis pour un propriétaire.' };
 
       let newBoutiqueId: string | null = null;
       let lastInsertError: Error | null = null;
 
       for (let i = 0; i < 5; i += 1) {
         const generatedCode = `LIKI-${Math.floor(100000 + Math.random() * 900000)}`;
-
         const { data: newBoutique, error: boutiqueInsertError } = await supabaseAdmin
           .from('boutiques')
-          .insert([
-            {
-              name: boutiqueName,
-              owner_id: createdAuthUserId,
-              boutique_code: generatedCode,
-            },
-          ])
+          .insert([{ name: boutiqueName, owner_id: createdAuthUserId, boutique_code: generatedCode }])
           .select('id')
           .single();
 
@@ -201,38 +160,29 @@ export async function registerAction(formData: FormData) {
           newBoutiqueId = newBoutique.id;
           break;
         }
-
         lastInsertError = boutiqueInsertError;
       }
 
-      if (!newBoutiqueId) {
-        throw lastInsertError ?? new Error('Erreur lors de la création de la boutique.');
-      }
+      if (!newBoutiqueId) throw lastInsertError ?? new Error('Erreur lors de la création de la boutique.');
 
       const { error: profileUpdateError } = await supabaseAdmin
         .from('profiles')
         .update({ boutique_id: newBoutiqueId })
         .eq('id', createdAuthUserId);
 
-      if (profileUpdateError) {
-        throw profileUpdateError;
-      }
+      if (profileUpdateError) throw profileUpdateError;
     }
   } catch (error) {
-    if (createdAuthUserId) {
-      await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
-    }
-
-    const message =
-      error instanceof Error
-        ? error.message
-        : 'Erreur lors de la finalisation de votre profil.';
+    if (createdAuthUserId) await supabaseAdmin.auth.admin.deleteUser(createdAuthUserId);
+    const message = error instanceof Error ? error.message : 'Erreur lors de la finalisation de votre profil.';
     return { error: message };
   }
 
+  await supabase.auth.getUser();
+
   if (role === 'owner') {
-    redirect('/dashboard');
-  } else {
-    redirect('/dashboard/pending');
+    return { success: true, redirectTo: '/dashboard/owner/inventaire' };
   }
+  
+  return { success: true, redirectTo: '/dashboard/pending' };
 }

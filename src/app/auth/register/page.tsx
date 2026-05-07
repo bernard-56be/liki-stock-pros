@@ -16,10 +16,16 @@ export default function RegisterPage() {
     
     formData.append('role', activeTab);
     
-    const result = await registerAction(formData);
-    
-    if (result?.error) {
-      setErrorMessage(result.error);
+    try {
+      const result = await registerAction(formData);
+
+      if (result?.error) {
+        setErrorMessage(result.error);
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Register error:', err);
+      setErrorMessage('Erreur lors de l\'inscription.');
       setIsLoading(false);
     }
   };

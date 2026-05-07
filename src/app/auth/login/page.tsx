@@ -2,25 +2,40 @@
 
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { loginAction } from '../actions';
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const nextPath = searchParams.get('next') ?? '';
 
-  const handleSubmit = async (formData: FormData) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setIsLoading(true);
     setErrorMessage('');
-    
-    const result = await loginAction(formData);
-    
-    if (result?.error) {
-      setErrorMessage(result.error);
+
+    try {
+      const formData = new FormData(e.currentTarget);
+      const result = await loginAction(formData);
+
+      if (result?.error) {
+        setErrorMessage(result.error);
+        setIsLoading(false);
+      } else if (result?.success && result?.redirectTo) {
+        // Redirection côté client pour éviter l'exposition des identifiants
+        router.push(result.redirectTo);
+      } else {
+        setErrorMessage('Réponse inattendue du serveur.');
+        setIsLoading(false);
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setErrorMessage('Erreur de connexion au serveur.');
       setIsLoading(false);
     }
   };
@@ -41,7 +56,7 @@ function LoginPageContent() {
         </div>
       )}
 
-      <form action={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <input type="hidden" name="next" value={nextPath} />
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Email</label>
