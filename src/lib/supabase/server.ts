@@ -19,7 +19,6 @@ export async function createClient() {
             )
           } catch {
             // Le middleware s'occupera de rafraîchir les cookies si besoin
-            // C'est normal que cela échoue dans un Server Component
           }
         },
       },
