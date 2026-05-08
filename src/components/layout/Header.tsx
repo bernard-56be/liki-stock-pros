@@ -1,9 +1,9 @@
-// components/layout/Header.tsx
 'use client';
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Bell, Settings, User } from 'lucide-react';
+import { Bell, Settings, User, Menu } from 'lucide-react';
+import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 
 interface HeaderProps {
   userName: string;
@@ -11,15 +11,24 @@ interface HeaderProps {
 }
 
 export function Header({ userName, userAvatar }: HeaderProps) {
+  const { toggleMenu } = useMenu();
+
   return (
-    <header className="sticky top-0 z-10 border-b border-gray-200 bg-white/80 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-20 border-b  bg-white/80 backdrop-blur-md shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* Logo */}
-        <div className="flex items-center">
+        {/* Gauche : bouton menu (mobile) + logo */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={toggleMenu}
+            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 md:hidden"
+            aria-label="Menu"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
           <span className="text-xl font-bold text-indigo-600">Liki-Stock Pro</span>
         </div>
 
-        {/* Actions utilisateur */}
+        {/* Actions utilisateur (inchangé) */}
         <div className="flex items-center gap-3">
           <Link
             href="/notifications"

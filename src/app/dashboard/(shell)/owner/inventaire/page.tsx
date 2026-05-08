@@ -217,18 +217,18 @@ const Pagination = memo(function Pagination({
   return (
     <div className="flex items-center justify-between border-t border-gray-100 pt-4">
       <Button
-        variant="outline"
+        variant="primary"
         size="sm"
         onClick={() => onPageChange(currentPage - 1)}
         disabled={currentPage === 1}
       >
         Précédent
       </Button>
-      <span className="text-sm text-gray-600">
+      <span className="text-sm text-gray-500 font-semibold">
         Page {currentPage} sur {totalPages}
       </span>
       <Button
-        variant="outline"
+        variant="primary"
         size="sm"
         onClick={() => onPageChange(currentPage + 1)}
         disabled={currentPage === totalPages}
@@ -295,11 +295,11 @@ const ProductSheet = memo(function ProductSheet({
       />
       <div className="fixed right-0 top-0 z-50 h-full w-full max-w-md transform overflow-y-auto bg-white shadow-xl transition-transform duration-300">
         <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="text-xl font-semibold">
+          <h2 className="text-xl font-semibold text-gray-600">
             {product ? 'Modifier le produit' : 'Ajouter un produit'}
           </h2>
           <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
-            <X className="h-5 w-5" />
+            <X className="h-5 w-5 text-gray-600" />
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 p-4">
@@ -310,7 +310,7 @@ const ProductSheet = memo(function ProductSheet({
               value={form.name}
               onChange={handleChange}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-600"
             />
           </div>
           <div>
@@ -321,7 +321,7 @@ const ProductSheet = memo(function ProductSheet({
               value={form.quantity}
               onChange={handleChange}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
             />
           </div>
           <div>
@@ -334,7 +334,7 @@ const ProductSheet = memo(function ProductSheet({
               value={form.purchasePrice}
               onChange={handleChange}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
             />
           </div>
           <div>
@@ -347,7 +347,7 @@ const ProductSheet = memo(function ProductSheet({
               value={form.salePrice}
               onChange={handleChange}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
             />
           </div>
           <div>
@@ -360,7 +360,7 @@ const ProductSheet = memo(function ProductSheet({
               value={form.minPrice}
               onChange={handleChange}
               required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
             />
           </div>
           <div>
@@ -371,7 +371,7 @@ const ProductSheet = memo(function ProductSheet({
               name="imageUrl"
               value={form.imageUrl}
               onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2"
+              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
             />
             {form.imageUrl && (
               <div className="mt-2 flex justify-center">
@@ -534,20 +534,20 @@ export default function OwnerInventoryPage() {
                     </div>
                     <div className="flex-1">
                       <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                      <p className="text-xs text-gray-500">Stock: {product.quantity}</p>
+                      <p className="text-sm text-gray-500">Stock : {product.quantity}</p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
-                    <span className="text-gray-600">Achat:</span>
-                    <span className="text-right font-medium">
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+                    <span className="text-gray-900 font-bold">Achat :</span>
+                    <span className="text-right font-medium text-gray-700">
                       {product.purchasePrice.toLocaleString()} FC
                     </span>
-                    <span className="text-gray-600">Vente:</span>
-                    <span className="text-right font-medium">
+                    <span className="text-gray-900 font-bold">Vente :</span>
+                    <span className="text-right font-medium text-gray-700">
                       {product.salePrice.toLocaleString()} FC
                     </span>
-                    <span className="text-gray-600">Minimum:</span>
-                    <span className="text-right font-medium">
+                    <span className="text-gray-900 font-bold">Minimum :</span>
+                    <span className="text-right font-medium text-gray-700">
                       {product.minPrice.toLocaleString()} FC
                     </span>
                   </div>
