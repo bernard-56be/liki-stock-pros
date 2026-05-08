@@ -522,7 +522,7 @@ export default function OwnerInventoryPage() {
               <Card key={product.id} className="border border-gray-200 shadow-sm">
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start gap-3">
-                    <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-md bg-gray-100">
+                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
                       <Image
                         src={product.imageUrl}
                         alt={product.name}
