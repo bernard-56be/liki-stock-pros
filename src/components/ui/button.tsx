@@ -3,6 +3,7 @@ import { ButtonHTMLAttributes, ReactNode } from 'react';
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  size?: 'default' | 'sm' | 'lg'; // Ajout de la propriété size
   isLoading?: boolean;
   fullWidth?: boolean;
 }
@@ -10,17 +11,18 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export const Button = ({
   children,
   variant = 'primary',
+  size = 'default', // Valeur par défaut
   isLoading = false,
   fullWidth = false,
   className = '',
   disabled,
   ...props
 }: ButtonProps) => {
-  // styles de base
+  // Styles de base (on retire px et py car ils vont dans les tailles)
   const baseStyle =
-    'px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    'rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
 
-  // styles selon la variante
+  // Styles selon la variante
   const variants = {
     primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
     secondary: 'bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-gray-400',
@@ -29,9 +31,16 @@ export const Button = ({
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
   };
 
+  // Styles selon la taille
+  const sizes = {
+    default: 'px-4 py-2 text-sm',
+    sm: 'px-3 py-1.5 text-xs', // Idéal pour ton tableau d'inventaire
+    lg: 'px-6 py-3 text-base',
+  };
+
   return (
     <button
-      className={`${baseStyle} ${variants[variant]} ${fullWidth ? 'w-full' : ''} ${className}`}
+      className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${fullWidth ? 'w-full' : ''} ${className}`}
       disabled={disabled || isLoading}
       {...props}
     >
