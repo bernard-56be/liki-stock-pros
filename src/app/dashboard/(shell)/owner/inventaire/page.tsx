@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { Search, X, Edit, Trash2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 
 // ---------- Types ----------
 type Product = {
@@ -239,18 +240,16 @@ const Pagination = memo(function Pagination({
   );
 });
 
-const ProductSheet = memo(function ProductSheet({
-  isOpen,
-  onClose,
+// ---------- Formulaire sheet (contenu animé) ----------
+const ProductForm = memo(function ProductForm({
   product,
+  onClose,
   onSave,
 }: {
-  isOpen: boolean;
-  onClose: () => void;
   product: Product | null;
+  onClose: () => void;
   onSave: (product: Product) => void;
 }) {
-  // Le formulaire s'initialise directement avec les valeurs de 'product' si elles existent
   const [form, setForm] = useState<Partial<Product>>(
     product || {
       name: '',
@@ -285,114 +284,106 @@ const ProductSheet = memo(function ProductSheet({
     onSave(newProduct);
   };
 
-  if (!isOpen) return null;
-
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40 bg-black/50 transition-opacity"
-        onClick={onClose}
-      />
-      <div className="fixed right-0 top-0 z-50 h-full w-full max-w-md transform overflow-y-auto bg-white shadow-xl transition-transform duration-300">
-        <div className="flex items-center justify-between border-b border-gray-200 p-4">
-          <h2 className="text-xl font-semibold text-gray-600">
-            {product ? 'Modifier le produit' : 'Ajouter un produit'}
-          </h2>
-          <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-600" />
-          </button>
-        </div>
-        <form onSubmit={handleSubmit} className="space-y-4 p-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Nom</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-600"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Quantité</label>
-            <input
-              type="number"
-              name="quantity"
-              value={form.quantity}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Prix d&apos;achat (FC)
-            </label>
-            <input
-              type="number"
-              name="purchasePrice"
-              value={form.purchasePrice}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Prix de vente (FC)
-            </label>
-            <input
-              type="number"
-              name="salePrice"
-              value={form.salePrice}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Prix minimum (FC)
-            </label>
-            <input
-              type="number"
-              name="minPrice"
-              value={form.minPrice}
-              onChange={handleChange}
-              required
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              URL image (thumbnail)
-            </label>
-            <input
-              name="imageUrl"
-              value={form.imageUrl}
-              onChange={handleChange}
-              className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
-            />
-            {form.imageUrl && (
-              <div className="mt-2 flex justify-center">
-                <div className="relative h-20 w-20 overflow-hidden rounded-md border">
-                  <Image
-                    src={form.imageUrl}
-                    alt="aperçu"
-                    width={80}
-                    height={80}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-          <Button type="submit" className="w-full">
-            {product ? 'Appliquer' : 'Ajouter'}
-          </Button>
-        </form>
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-gray-200 p-4">
+        <h2 className="text-xl font-semibold text-gray-600">
+          {product ? 'Modifier le produit' : 'Ajouter un produit'}
+        </h2>
+        <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
+          <X className="h-5 w-5 text-gray-600" />
+        </button>
       </div>
-    </>
+      <form onSubmit={handleSubmit} className="flex-1 space-y-4 overflow-y-auto p-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Nom</label>
+          <input
+            name="name"
+            value={form.name}
+            onChange={handleChange}
+            required
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-600"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Quantité</label>
+          <input
+            type="number"
+            name="quantity"
+            value={form.quantity}
+            onChange={handleChange}
+            required
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Prix d&apos;achat (FC)
+          </label>
+          <input
+            type="number"
+            name="purchasePrice"
+            value={form.purchasePrice}
+            onChange={handleChange}
+            required
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Prix de vente (FC)
+          </label>
+          <input
+            type="number"
+            name="salePrice"
+            value={form.salePrice}
+            onChange={handleChange}
+            required
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Prix minimum (FC)
+          </label>
+          <input
+            type="number"
+            name="minPrice"
+            value={form.minPrice}
+            onChange={handleChange}
+            required
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            URL image (thumbnail)
+          </label>
+          <input
+            name="imageUrl"
+            value={form.imageUrl}
+            onChange={handleChange}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+          {form.imageUrl && (
+            <div className="mt-2 flex justify-center">
+              <div className="relative h-20 w-20 overflow-hidden rounded-md border">
+                <Image
+                  src={form.imageUrl}
+                  alt="aperçu"
+                  width={80}
+                  height={80}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+        <Button type="submit" className="w-full">
+          {product ? 'Appliquer' : 'Ajouter'}
+        </Button>
+      </form>
+    </div>
   );
 });
 
@@ -467,6 +458,11 @@ export default function OwnerInventoryPage() {
     },
     [startTransition]
   );
+
+  const closeSheet = useCallback(() => {
+    setIsSheetOpen(false);
+    setEditingProduct(null);
+  }, []);
 
   return (
     <section className="mx-auto w-full max-w-6xl">
@@ -586,16 +582,13 @@ export default function OwnerInventoryPage() {
         </CardContent>
       </Card>
 
-      <ProductSheet
-        key={editingProduct?.id || (isSheetOpen ? 'new' : 'closed')}
-        isOpen={isSheetOpen}
-        onClose={() => {
-          setIsSheetOpen(false);
-          setEditingProduct(null);
-        }}
-        product={editingProduct}
-        onSave={handleSaveProduct}
-      />
+      <AnimatedSheet isOpen={isSheetOpen} onClose={closeSheet}>
+        <ProductForm
+          product={editingProduct}
+          onClose={closeSheet}
+          onSave={handleSaveProduct}
+        />
+      </AnimatedSheet>
     </section>
   );
 }

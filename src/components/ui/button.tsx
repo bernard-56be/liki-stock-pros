@@ -3,7 +3,7 @@ import { ButtonHTMLAttributes, ReactNode } from 'react';
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
   variant?: 'primary' | 'secondary' | 'outline' | 'danger';
-  size?: 'default' | 'sm' | 'lg'; // Ajout de la propriété size
+  size?: 'default' | 'sm' | 'lg'; 
   isLoading?: boolean;
   fullWidth?: boolean;
 }
