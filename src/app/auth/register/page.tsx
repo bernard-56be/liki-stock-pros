@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { registerAction } from '../actions';
+import { registerAction } from '../../../lib/actions/auth';
 
 export default function RegisterPage() {
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');

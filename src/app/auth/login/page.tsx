@@ -4,7 +4,7 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { loginAction } from '../actions';
+import { loginAction } from '../../../lib/actions/auth';
 
 function LoginPageContent() {
   const searchParams = useSearchParams();
