@@ -6,131 +6,18 @@ import {
   useCallback,
   useTransition,
   memo,
+  useEffect,
 } from 'react';
 import Image from 'next/image';
-import { Search, X, Edit, Trash2 } from 'lucide-react';
+import { Search, X, Edit, Trash2, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
-
-// ---------- Types ----------
-type Product = {
-  id: string;
-  name: string;
-  quantity: number;
-  purchasePrice: number;
-  salePrice: number;
-  minPrice: number;
-  imageUrl: string;
-};
-
-// ---------- Données mockées ----------
-const initialProducts: Product[] = [
-  {
-    id: 'P-001',
-    name: 'Riz Premium 25kg',
-    quantity: 18,
-    purchasePrice: 58000,
-    salePrice: 65000,
-    minPrice: 61000,
-    imageUrl: 'https://picsum.photos/id/1/80/80',
-  },
-  {
-    id: 'P-002',
-    name: 'Huile végétale 5L',
-    quantity: 7,
-    purchasePrice: 9200,
-    salePrice: 11000,
-    minPrice: 10000,
-    imageUrl: 'https://picsum.photos/id/2/80/80',
-  },
-  {
-    id: 'P-003',
-    name: 'Sucre blanc 1kg',
-    quantity: 42,
-    purchasePrice: 1350,
-    salePrice: 1700,
-    minPrice: 1550,
-    imageUrl: 'https://picsum.photos/id/3/80/80',
-  },
-  {
-    id: 'P-004',
-    name: 'Savon lessive (lot x12)',
-    quantity: 4,
-    purchasePrice: 7600,
-    salePrice: 9300,
-    minPrice: 8600,
-    imageUrl: 'https://picsum.photos/id/4/80/80',
-  },
-  {
-    id: 'P-005',
-    name: 'Farine de maïs 25kg',
-    quantity: 23,
-    purchasePrice: 45000,
-    salePrice: 52000,
-    minPrice: 49000,
-    imageUrl: 'https://picsum.photos/id/5/80/80',
-  },
-  {
-    id: 'P-006',
-    name: 'Tomates concentrées 70g',
-    quantity: 120,
-    purchasePrice: 450,
-    salePrice: 600,
-    minPrice: 550,
-    imageUrl: 'https://picsum.photos/id/6/80/80',
-  },
-  {
-    id: 'P-007',
-    name: 'Pâtes alimentaires 500g',
-    quantity: 85,
-    purchasePrice: 850,
-    salePrice: 1200,
-    minPrice: 1100,
-    imageUrl: 'https://picsum.photos/id/7/80/80',
-  },
-  {
-    id: 'P-008',
-    name: 'Lait en poudre 400g',
-    quantity: 31,
-    purchasePrice: 4200,
-    salePrice: 5500,
-    minPrice: 5100,
-    imageUrl: 'https://picsum.photos/id/8/80/80',
-  },
-  {
-    id: 'P-009',
-    name: 'Œufs (plateau 30)',
-    quantity: 15,
-    purchasePrice: 4800,
-    salePrice: 6000,
-    minPrice: 5700,
-    imageUrl: 'https://picsum.photos/id/9/80/80',
-  },
-  {
-    id: 'P-010',
-    name: 'Poulet entier congelé',
-    quantity: 9,
-    purchasePrice: 12500,
-    salePrice: 15500,
-    minPrice: 14800,
-    imageUrl: 'https://picsum.photos/id/10/80/80',
-  },
-  {
-    id: 'P-011',
-    name: 'Poisson fumé (kg)',
-    quantity: 22,
-    purchasePrice: 9800,
-    salePrice: 12500,
-    minPrice: 11800,
-    imageUrl: 'https://picsum.photos/id/11/80/80',
-  },
-];
+import { getProducts, createProduct, updateProduct, deleteProduct, type Product } from '@/lib/actions/inventory';
 
 const ITEMS_PER_PAGE = 6;
 
 // ---------- Composants optimisés ----------
-
 const ProductRow = memo(function ProductRow({
   product,
   onEdit,
@@ -147,16 +34,28 @@ const ProductRow = memo(function ProductRow({
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              width={40}
-              height={40}
-              className="h-full w-full object-cover"
-              loading="lazy"
-            />
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                width={40}
+                height={40}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-200 text-xs text-gray-500">
+                📦
+              </div>
+            )}
           </div>
           <span className="font-medium text-gray-900">{product.name}</span>
+          {product.isLowStock && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+              <AlertTriangle className="h-3 w-3" />
+              Stock bas
+            </span>
+          )}
         </div>
       </td>
       <td className="px-4 py-3 text-center text-gray-600">{product.quantity}</td>
@@ -225,7 +124,7 @@ const Pagination = memo(function Pagination({
       >
         Précédent
       </Button>
-      <span className="text-sm text-gray-500 font-semibold">
+      <span className="text-sm font-semibold text-gray-500">
         Page {currentPage} sur {totalPages}
       </span>
       <Button
@@ -240,7 +139,7 @@ const Pagination = memo(function Pagination({
   );
 });
 
-// ---------- Formulaire sheet (contenu animé) ----------
+// ---------- Formulaire avec upload d'image ----------
 const ProductForm = memo(function ProductForm({
   product,
   onClose,
@@ -248,47 +147,39 @@ const ProductForm = memo(function ProductForm({
 }: {
   product: Product | null;
   onClose: () => void;
-  onSave: (product: Product) => void;
+  onSave: (formData: FormData) => Promise<void>;
 }) {
-  const [form, setForm] = useState<Partial<Product>>(
-    product || {
-      name: '',
-      quantity: 0,
-      purchasePrice: 0,
-      salePrice: 0,
-      minPrice: 0,
-      imageUrl: 'https://picsum.photos/id/20/80/80',
-    }
-  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(product?.imageUrl || null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isEditing = !!product;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type } = e.target;
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'number' ? (value === '' ? 0 : parseFloat(value)) : value,
-    }));
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+    } else {
+      setPreviewUrl(product?.imageUrl || null);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!form.name?.trim()) return;
-    const newProduct: Product = {
-      id: product?.id || crypto.randomUUID(),
-      name: form.name.trim(),
-      quantity: form.quantity ?? 0,
-      purchasePrice: form.purchasePrice ?? 0,
-      salePrice: form.salePrice ?? 0,
-      minPrice: form.minPrice ?? 0,
-      imageUrl: form.imageUrl || 'https://picsum.photos/id/20/80/80',
-    };
-    onSave(newProduct);
+    setIsSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    if (isEditing && product) {
+      formData.append('id', product.id);
+      if (product.imageUrl) formData.append('currentImageUrl', product.imageUrl);
+    }
+    await onSave(formData);
+    setIsSubmitting(false);
   };
 
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center justify-between border-b border-gray-200 p-4">
         <h2 className="text-xl font-semibold text-gray-600">
-          {product ? 'Modifier le produit' : 'Ajouter un produit'}
+          {isEditing ? 'Modifier le produit' : 'Ajouter un produit'}
         </h2>
         <button onClick={onClose} className="rounded-full p-1 hover:bg-gray-100">
           <X className="h-5 w-5 text-gray-600" />
@@ -299,8 +190,7 @@ const ProductForm = memo(function ProductForm({
           <label className="block text-sm font-medium text-gray-700">Nom</label>
           <input
             name="name"
-            value={form.name}
-            onChange={handleChange}
+            defaultValue={product?.name || ''}
             required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-600"
           />
@@ -310,67 +200,69 @@ const ProductForm = memo(function ProductForm({
           <input
             type="number"
             name="quantity"
-            value={form.quantity}
-            onChange={handleChange}
+            defaultValue={product?.quantity || 0}
             required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Prix d&apos;achat (FC)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Prix d&apos;achat (FC)</label>
           <input
             type="number"
+            step="any"
             name="purchasePrice"
-            value={form.purchasePrice}
-            onChange={handleChange}
+            defaultValue={product?.purchasePrice || 0}
             required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Prix de vente (FC)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Prix de vente (FC)</label>
           <input
             type="number"
+            step="any"
             name="salePrice"
-            value={form.salePrice}
-            onChange={handleChange}
+            defaultValue={product?.salePrice || 0}
             required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            Prix minimum (FC)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Prix minimum (FC)</label>
           <input
             type="number"
+            step="any"
             name="minPrice"
-            value={form.minPrice}
-            onChange={handleChange}
+            defaultValue={product?.minPrice || 0}
             required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700">
-            URL image (thumbnail)
-          </label>
+          <label className="block text-sm font-medium text-gray-700">Seuil d&apos;alerte stock</label>
           <input
-            name="imageUrl"
-            value={form.imageUrl}
-            onChange={handleChange}
+            type="number"
+            name="stockAlerte"
+            defaultValue={product?.stockAlerte || 5}
+            required
             className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
           />
-          {form.imageUrl && (
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">Image du produit</label>
+          <input
+            type="file"
+            accept="image/*"
+            name="image"
+            onChange={handleImageChange}
+            className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-gray-500"
+          />
+          {previewUrl && (
             <div className="mt-2 flex justify-center">
               <div className="relative h-20 w-20 overflow-hidden rounded-md border">
                 <Image
-                  src={form.imageUrl}
-                  alt="aperçu"
+                  src={previewUrl}
+                  alt="Aperçu"
                   width={80}
                   height={80}
                   className="h-full w-full object-cover"
@@ -379,8 +271,8 @@ const ProductForm = memo(function ProductForm({
             </div>
           )}
         </div>
-        <Button type="submit" className="w-full">
-          {product ? 'Appliquer' : 'Ajouter'}
+        <Button type="submit" className="w-full" disabled={isSubmitting}>
+          {isSubmitting ? 'Enregistrement...' : isEditing ? 'Appliquer' : 'Ajouter'}
         </Button>
       </form>
     </div>
@@ -389,12 +281,26 @@ const ProductForm = memo(function ProductForm({
 
 // ---------- Page principale ----------
 export default function OwnerInventoryPage() {
-  const [products, setProducts] = useState<Product[]>(initialProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [, startTransition] = useTransition();
+  const [isLoading, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  // Chargement initial
+  useEffect(() => {
+    startTransition(async () => {
+      const result = await getProducts();
+      if (result.success && result.data) {
+        setProducts(result.data);
+        setError(null);
+      } else {
+        setError(result.error || 'Erreur de chargement');
+      }
+    });
+  }, []);
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
@@ -413,21 +319,21 @@ export default function OwnerInventoryPage() {
     setCurrentPage(1);
   }, []);
 
-  const handleDelete = useCallback(
-    (id: string) => {
-      startTransition(() => {
-        setProducts((prev) => prev.filter((p) => p.id !== id));
-        const newFilteredLen = filteredProducts.length - 1;
-        const newTotalPages = Math.ceil(newFilteredLen / ITEMS_PER_PAGE);
-        if (currentPage > newTotalPages && newTotalPages > 0) {
-          setCurrentPage(newTotalPages);
-        } else if (newFilteredLen === 0) {
-          setCurrentPage(1);
-        }
-      });
-    },
-    [filteredProducts.length, currentPage, startTransition]
-  );
+  const handleDelete = useCallback(async (id: string) => {
+    const result = await deleteProduct(id);
+    if (result.success) {
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      const newFilteredLen = filteredProducts.length - 1;
+      const newTotalPages = Math.ceil(newFilteredLen / ITEMS_PER_PAGE);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      } else if (newFilteredLen === 0) {
+        setCurrentPage(1);
+      }
+    } else {
+      setError(result.error || 'Erreur lors de la suppression');
+    }
+  }, [filteredProducts.length, currentPage]);
 
   const handleOpenCreate = () => {
     setEditingProduct(null);
@@ -439,30 +345,40 @@ export default function OwnerInventoryPage() {
     setIsSheetOpen(true);
   };
 
-  const handleSaveProduct = useCallback(
-    (savedProduct: Product) => {
-      startTransition(() => {
-        setProducts((prev) => {
-          const existingIndex = prev.findIndex((p) => p.id === savedProduct.id);
-          if (existingIndex !== -1) {
-            const updated = [...prev];
-            updated[existingIndex] = savedProduct;
-            return updated;
-          } else {
-            return [...prev, savedProduct];
-          }
-        });
-        setIsSheetOpen(false);
-        setEditingProduct(null);
-      });
-    },
-    [startTransition]
-  );
+  const handleSaveProduct = useCallback(async (formData: FormData) => {
+    const action = editingProduct ? updateProduct : createProduct;
+    const result = await action(formData);
+    if (result.success) {
+      // Rechargement complet pour rester synchrone (simple)
+      const { data: freshProducts } = await getProducts();
+      if (freshProducts) setProducts(freshProducts);
+      setIsSheetOpen(false);
+      setEditingProduct(null);
+    } else {
+      setError(result.error || 'Erreur lors de l’enregistrement');
+    }
+  }, [editingProduct]);
 
   const closeSheet = useCallback(() => {
     setIsSheetOpen(false);
     setEditingProduct(null);
   }, []);
+
+  if (isLoading && products.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-gray-500">Chargement des produits...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-red-600">Erreur : {error}</div>
+      </div>
+    );
+  }
 
   return (
     <section className="mx-auto w-full max-w-6xl">
@@ -471,7 +387,7 @@ export default function OwnerInventoryPage() {
           <div>
             <CardTitle>Inventaire</CardTitle>
             <p className="text-sm text-gray-600">
-              Gestion des produits (recherche instantanée, pagination 10/page)
+              Gestion des produits (recherche instantanée, pagination 6/page)
             </p>
           </div>
           <Button onClick={handleOpenCreate}>Ajouter un produit</Button>
@@ -479,7 +395,7 @@ export default function OwnerInventoryPage() {
         <CardContent className="space-y-4">
           <SearchBar value={searchTerm} onChange={handleSearch} />
 
-          {/* Version desktop - tableau */}
+          {/* Version desktop */}
           <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 text-left text-gray-700">
@@ -519,30 +435,41 @@ export default function OwnerInventoryPage() {
                 <CardContent className="space-y-2 p-4">
                   <div className="flex items-start gap-3">
                     <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
-                      <Image
-                        src={product.imageUrl}
-                        alt={product.name}
-                        width={48}
-                        height={48}
-                        className="h-full w-full object-cover"
-                        loading="lazy"
-                      />
+                      {product.imageUrl ? (
+                        <Image
+                          src={product.imageUrl}
+                          alt={product.name}
+                          width={48}
+                          height={48}
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gray-200 text-xs text-gray-500">
+                          📦
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-gray-900">{product.name}</h3>
+                        {product.isLowStock && (
+                          <AlertTriangle className="h-4 w-4 text-red-500" />
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500">Stock : {product.quantity}</p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
-                    <span className="text-gray-900 font-bold">Achat :</span>
+                    <span className="font-bold text-gray-900">Achat :</span>
                     <span className="text-right font-medium text-gray-700">
                       {product.purchasePrice.toLocaleString()} FC
                     </span>
-                    <span className="text-gray-900 font-bold">Vente :</span>
+                    <span className="font-bold text-gray-900">Vente :</span>
                     <span className="text-right font-medium text-gray-700">
                       {product.salePrice.toLocaleString()} FC
                     </span>
-                    <span className="text-gray-900 font-bold">Minimum :</span>
+                    <span className="font-bold text-gray-900">Minimum :</span>
                     <span className="text-right font-medium text-gray-700">
                       {product.minPrice.toLocaleString()} FC
                     </span>
