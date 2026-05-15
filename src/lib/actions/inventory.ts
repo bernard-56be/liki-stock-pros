@@ -17,7 +17,7 @@ export type Product = {
 };
 
 /**
- * Récupère le boutique_id de l'utilisateur connecté
+ * Récupère le boutique_id depuis le profil de l'utilisateur
  */
 async function getBoutiqueId() {
   const supabase = await createClient();
@@ -31,13 +31,13 @@ async function getBoutiqueId() {
     .single();
 
   if (error || !profile?.boutique_id) {
-    throw new Error('Boutique non trouvée pour cet utilisateur');
+    throw new Error('Boutique non trouvée dans votre profil. Assurez-vous d\'être lié à une boutique.');
   }
   return profile.boutique_id;
 }
 
 /**
- * Récupère tous les produits de la boutique
+ * Récupère tous les produits (Table: products)
  */
 export async function getProducts(): Promise<{ success: boolean; data?: Product[]; error?: string }> {
   try {
@@ -45,7 +45,7 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from('produits')
+      .from('products') // Correction du nom de la table
       .select('*')
       .eq('boutique_id', boutiqueId)
       .order('name');
@@ -71,7 +71,7 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
 }
 
 /**
- * Upload une image dans le bucket Supabase
+ * Upload d'image
  */
 async function uploadImage(file: File, boutiqueId: string): Promise<string | null> {
   const supabase = await createClient();
@@ -95,34 +95,27 @@ async function uploadImage(file: File, boutiqueId: string): Promise<string | nul
 }
 
 /**
- * Crée un nouveau produit
+ * Ajouter un produit
  */
 export async function createProduct(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
-    const name = formData.get('name') as string;
-    const quantity = parseInt(formData.get('quantity') as string);
-    const purchasePrice = parseFloat(formData.get('purchasePrice') as string);
-    const salePrice = parseFloat(formData.get('salePrice') as string);
-    const minPrice = parseFloat(formData.get('minPrice') as string);
-    const stockAlerte = parseInt(formData.get('stockAlerte') as string);
     const imageFile = formData.get('image') as File | null;
-
     let imageUrl: string | null = null;
     if (imageFile && imageFile.size > 0) {
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
-    const { error } = await supabase.from('produts').insert({
+    const { error } = await supabase.from('products').insert({
       boutique_id: boutiqueId,
-      name,
-      quantity,
-      purchase_price: purchasePrice,
-      sale_price: salePrice,
-      min_price: minPrice,
-      stock_alerte: stockAlerte,
+      name: formData.get('name') as string,
+      quantity: parseInt(formData.get('quantity') as string) || 0,
+      purchase_price: parseFloat(formData.get('purchasePrice') as string) || 0,
+      sale_price: parseFloat(formData.get('salePrice') as string) || 0,
+      min_price: parseFloat(formData.get('minPrice') as string) || 0,
+      stock_alerte: parseInt(formData.get('stockAlerte') as string) || 5,
       image_url: imageUrl,
     });
 
@@ -136,7 +129,7 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
 }
 
 /**
- * Met à jour un produit existant
+ * Modifier un produit
  */
 export async function updateProduct(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
@@ -144,12 +137,6 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
     const supabase = await createClient();
 
     const id = formData.get('id') as string;
-    const name = formData.get('name') as string;
-    const quantity = parseInt(formData.get('quantity') as string);
-    const purchasePrice = parseFloat(formData.get('purchasePrice') as string);
-    const salePrice = parseFloat(formData.get('salePrice') as string);
-    const minPrice = parseFloat(formData.get('minPrice') as string);
-    const stockAlerte = parseInt(formData.get('stockAlerte') as string);
     const imageFile = formData.get('image') as File | null;
     const currentImageUrl = formData.get('currentImageUrl') as string | null;
 
@@ -161,16 +148,16 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
     const { error } = await supabase
       .from('products')
       .update({
-        name,
-        quantity,
-        purchase_price: purchasePrice,
-        sale_price: salePrice,
-        min_price: minPrice,
-        stock_alerte: stockAlerte,
+        name: formData.get('name') as string,
+        quantity: parseInt(formData.get('quantity') as string),
+        purchase_price: parseFloat(formData.get('purchasePrice') as string),
+        sale_price: parseFloat(formData.get('salePrice') as string),
+        min_price: parseFloat(formData.get('minPrice') as string),
+        stock_alerte: parseInt(formData.get('stockAlerte') as string),
         image_url: imageUrl,
       })
       .eq('id', id)
-      .eq('boutique_id', boutiqueId); // sécurité supplémentaire
+      .eq('boutique_id', boutiqueId);
 
     if (error) throw error;
 
@@ -182,7 +169,7 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 }
 
 /**
- * Supprime un produit
+ * Supprimer un produit
  */
 export async function deleteProduct(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
