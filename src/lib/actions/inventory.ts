@@ -17,35 +17,52 @@ export type Product = {
 };
 
 /**
- * Récupère le boutique_id depuis le profil de l'utilisateur
+ * Récupère le boutique_id de l'utilisateur connecté.
+ * Stratégie : d'abord via profiles.boutique_id, sinon via boutiques.owner_id.
+ * Retourne l'ID ou lève une erreur explicite (capturable).
  */
-async function getBoutiqueId() {
+async function getBoutiqueId(): Promise<string> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Non authentifié');
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-  const { data: profile, error } = await supabase
+  if (userError || !user) {
+    throw new Error('Non authentifié');
+  }
+
+  // 1. Essayer de lire profiles.boutique_id
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('boutique_id')
     .eq('id', user.id)
     .single();
 
-  if (error || !profile?.boutique_id) {
-    throw new Error('Boutique non trouvée dans votre profil. Assurez-vous d\'être lié à une boutique.');
+  if (!profileError && profile?.boutique_id) {
+    return profile.boutique_id;
   }
-  return profile.boutique_id;
+
+  // 2. Fallback : chercher la boutique dont l'utilisateur est propriétaire
+  const { data: boutique, error: boutiqueError } = await supabase
+    .from('boutiques')
+    .select('id')
+    .eq('owner_id', user.id)
+    .single();
+
+  if (boutiqueError || !boutique) {
+    console.error('getBoutiqueId - profileError:', profileError);
+    console.error('getBoutiqueId - boutiqueError:', boutiqueError);
+    throw new Error('Aucune boutique associée à ce compte. Vérifiez votre profil ou la table boutiques.');
+  }
+
+  return boutique.id;
 }
 
-/**
- * Récupère tous les produits (Table: products)
- */
 export async function getProducts(): Promise<{ success: boolean; data?: Product[]; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
     const { data, error } = await supabase
-      .from('products') // Correction du nom de la table
+      .from('products')
       .select('*')
       .eq('boutique_id', boutiqueId)
       .order('name');
@@ -66,56 +83,69 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
 
     return { success: true, data: products };
   } catch (err: any) {
+    console.error('getProducts error:', err);
     return { success: false, error: err.message };
   }
 }
 
-/**
- * Upload d'image
- */
 async function uploadImage(file: File, boutiqueId: string): Promise<string | null> {
-  const supabase = await createClient();
-  const ext = file.name.split('.').pop();
-  const fileName = `${boutiqueId}/${randomUUID()}.${ext}`;
+  try {
+    const supabase = await createClient();
+    const ext = file.name.split('.').pop();
+    const fileName = `${boutiqueId}/${randomUUID()}.${ext}`;
 
-  const { error } = await supabase.storage
-    .from('product-images')
-    .upload(fileName, file, { cacheControl: '3600', upsert: false });
+    const { error } = await supabase.storage
+      .from('product-images')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false });
 
-  if (error) {
-    console.error('Upload error:', error);
+    if (error) {
+      console.error('Upload error:', error);
+      return null;
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('product-images')
+      .getPublicUrl(fileName);
+
+    return publicUrlData.publicUrl;
+  } catch (err) {
+    console.error('uploadImage exception:', err);
     return null;
   }
-
-  const { data: publicUrlData } = supabase.storage
-    .from('product-images')
-    .getPublicUrl(fileName);
-
-  return publicUrlData.publicUrl;
 }
 
-/**
- * Ajouter un produit
- */
 export async function createProduct(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
+    // Récupération sécurisée des champs
+    const name = formData.get('name') as string;
+    if (!name?.trim()) {
+      return { success: false, error: 'Le nom du produit est obligatoire.' };
+    }
+
+    const quantity = parseInt(formData.get('quantity') as string) || 0;
+    const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
+    const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
+    const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
+    const stockAlerte = parseInt(formData.get('stockAlerte') as string) || 5;
+
+    // Gestion de l'image
     const imageFile = formData.get('image') as File | null;
     let imageUrl: string | null = null;
-    if (imageFile && imageFile.size > 0) {
+    if (imageFile && imageFile.size > 0 && imageFile.size < 5 * 1024 * 1024) { // max 5 Mo
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
     const { error } = await supabase.from('products').insert({
       boutique_id: boutiqueId,
-      name: formData.get('name') as string,
-      quantity: parseInt(formData.get('quantity') as string) || 0,
-      purchase_price: parseFloat(formData.get('purchasePrice') as string) || 0,
-      sale_price: parseFloat(formData.get('salePrice') as string) || 0,
-      min_price: parseFloat(formData.get('minPrice') as string) || 0,
-      stock_alerte: parseInt(formData.get('stockAlerte') as string) || 5,
+      name: name.trim(),
+      quantity,
+      purchase_price: purchasePrice,
+      sale_price: salePrice,
+      min_price: minPrice,
+      stock_alerte: stockAlerte,
       image_url: imageUrl,
     });
 
@@ -124,36 +154,44 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    console.error('createProduct error:', err);
+    return { success: false, error: err.message || 'Erreur interne du serveur.' };
   }
 }
 
-/**
- * Modifier un produit
- */
+// updateProduct et deleteProduct restent identiques à votre version, 
+// mais assurez-vous qu'elles utilisent la même logique de getBoutiqueId (sans throw non capturé)
 export async function updateProduct(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
     const id = formData.get('id') as string;
-    const imageFile = formData.get('image') as File | null;
+    if (!id) return { success: false, error: 'ID produit manquant.' };
+
+    const name = formData.get('name') as string;
+    const quantity = parseInt(formData.get('quantity') as string) || 0;
+    const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
+    const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
+    const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
+    const stockAlerte = parseInt(formData.get('stockAlerte') as string) || 5;
     const currentImageUrl = formData.get('currentImageUrl') as string | null;
+    const imageFile = formData.get('image') as File | null;
 
     let imageUrl = currentImageUrl;
-    if (imageFile && imageFile.size > 0) {
+    if (imageFile && imageFile.size > 0 && imageFile.size < 5 * 1024 * 1024) {
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
     const { error } = await supabase
       .from('products')
       .update({
-        name: formData.get('name') as string,
-        quantity: parseInt(formData.get('quantity') as string),
-        purchase_price: parseFloat(formData.get('purchasePrice') as string),
-        sale_price: parseFloat(formData.get('salePrice') as string),
-        min_price: parseFloat(formData.get('minPrice') as string),
-        stock_alerte: parseInt(formData.get('stockAlerte') as string),
+        name: name.trim(),
+        quantity,
+        purchase_price: purchasePrice,
+        sale_price: salePrice,
+        min_price: minPrice,
+        stock_alerte: stockAlerte,
         image_url: imageUrl,
       })
       .eq('id', id)
@@ -164,13 +202,11 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
   } catch (err: any) {
+    console.error('updateProduct error:', err);
     return { success: false, error: err.message };
   }
 }
 
-/**
- * Supprimer un produit
- */
 export async function deleteProduct(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
@@ -187,6 +223,7 @@ export async function deleteProduct(productId: string): Promise<{ success: boole
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
   } catch (err: any) {
+    console.error('deleteProduct error:', err);
     return { success: false, error: err.message };
   }
 }
