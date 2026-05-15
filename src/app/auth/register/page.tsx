@@ -23,6 +23,7 @@ export default function RegisterPage() {
         setErrorMessage(result.error);
         setIsLoading(false);
       }
+      setIsLoading(false);
     } catch (err) {
       console.error('Register error:', err);
       setErrorMessage('Erreur lors de l\'inscription.');
