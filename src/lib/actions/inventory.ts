@@ -82,9 +82,10 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
     }));
 
     return { success: true, data: products };
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Erreur lors de la récupération des produits";
     console.error('getProducts error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -131,10 +132,17 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
     const stockAlerte = parseInt(formData.get('stockAlerte') as string) || 5;
 
-    // Gestion de l'image
+    // Gestion de l'image avec vérification de la taille (5 Mo max)
     const imageFile = formData.get('image') as File | null;
-    let imageUrl: string | null = null;
-    if (imageFile && imageFile.size > 0 && imageFile.size < 5 * 1024 * 1024) { // max 5 Mo
+    const currentImageUrl = formData.get('currentImageUrl') as string | null;
+
+    let imageUrl = currentImageUrl;
+
+    // Vérification de la taille de l'image avant upload
+    if (imageFile && imageFile.size > 0) {
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error("L'image est trop volumineuse et ne doit pas dépasser 5 Mo");
+      }
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
@@ -153,14 +161,13 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
 
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Erreur lors de la création du produit";
     console.error('createProduct error:', err);
-    return { success: false, error: err.message || 'Erreur interne du serveur.' };
+    return { success: false, error: errorMessage };
   }
 }
 
-// updateProduct et deleteProduct restent identiques à votre version, 
-// mais assurez-vous qu'elles utilisent la même logique de getBoutiqueId (sans throw non capturé)
 export async function updateProduct(formData: FormData): Promise<{ success: boolean; error?: string }> {
   try {
     const boutiqueId = await getBoutiqueId();
@@ -179,7 +186,11 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
     const imageFile = formData.get('image') as File | null;
 
     let imageUrl = currentImageUrl;
-    if (imageFile && imageFile.size > 0 && imageFile.size < 5 * 1024 * 1024) {
+
+    if (imageFile && imageFile.size > 0) {
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error("L'image est trop volumineuse et ne doit pas dépasser 5 Mo");
+      }
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
@@ -201,9 +212,10 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Erreur lors de la mise à jour";
     console.error('updateProduct error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: errorMessage };
   }
 }
 
@@ -222,8 +234,9 @@ export async function deleteProduct(productId: string): Promise<{ success: boole
 
     revalidatePath('/dashboard/owner/inventaire');
     return { success: true };
-  } catch (err: any) {
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : "Erreur lors de la suppression";
     console.error('deleteProduct error:', err);
-    return { success: false, error: err.message };
+    return { success: false, error: errorMessage };
   }
 }

@@ -155,7 +155,17 @@ const ProductForm = memo(function ProductForm({
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    
     if (file) {
+      // 1. VÉRIFICATION DE LA TAILLE (5 Mo max) AVANT TOUT
+      if (file.size > 5 * 1024 * 1024) {
+        alert("L'image est trop volumineuse et ne doit pas dépasser 5 Mo.");
+        e.target.value = ''; // On vide l'input pour annuler l'importation
+        setPreviewUrl(product?.imageUrl || null); // On remet l'ancienne image si elle existe
+        return; // On arrête tout, on ne crée pas de prévisualisation
+      }
+
+      // 2. Si la taille est bonne, on crée la prévisualisation
       const url = URL.createObjectURL(file);
       setPreviewUrl(url);
     } else {

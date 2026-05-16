@@ -4,12 +4,12 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
-        hostname: 'picsum.photos',
+        hostname: 'pzyqxowfhluspperotap.supabase.co', // Le domaine Supabase exact
         port: '',
-        pathname: '/**',
+        pathname: '/storage/v1/object/public/**', // Autoriser tout ce qui vient du bucket public
       },
     ],
   },
 };
 
-export default nextConfig;
+export default nextConfig; // ou module.exports = nextConfig; si c'est en CommonJS
