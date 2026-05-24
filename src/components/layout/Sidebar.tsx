@@ -11,6 +11,7 @@ type NavItem = { href: string; label: string };
 
 const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
+  { href: '/dashboard/owner/validation', label: 'Validation' }, // 👈 La nouvelle ligne est ici !
 ];
 
 const employeeNav: NavItem[] = [
