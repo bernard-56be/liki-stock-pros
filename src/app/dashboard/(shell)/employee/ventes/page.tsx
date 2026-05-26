@@ -1,23 +1,13 @@
 'use client';
 
-import { useState, useMemo, useCallback, memo } from 'react';
+import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import Image from 'next/image';
 import { Search, Plus, Minus, Trash2, AlertTriangle, ShoppingCart } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-
-// ---------- Types ----------
-type Product = {
-  id: string;
-  name: string;
-  quantity: number;
-  salePrice: number;      // prix de vente par défaut (en FC)
-  minPrice: number;       // prix minimum autorisé (en FC)
-  imageUrl: string | null;
-  stockAlerte: number;
-  isLowStock: boolean;
-};
+import { getProducts, type Product } from '@/lib/actions/inventory';
+import { processSale } from '@/lib/actions/process-sale';
 
 type CartItem = {
   id: string;
@@ -28,54 +18,10 @@ type CartItem = {
   maxStock: number;           // stock maximum disponible
 };
 
-// ---------- Mock produits (simulation, à remplacer par données réelles) ----------
-const mockProducts: Product[] = [
-  {
-    id: 'P-001',
-    name: 'Riz Premium 25kg',
-    quantity: 18,
-    salePrice: 65000,
-    minPrice: 61000,
-    imageUrl: 'https://picsum.photos/id/1/80/80',
-    stockAlerte: 5,
-    isLowStock: false,
-  },
-  {
-    id: 'P-002',
-    name: 'Huile végétale 5L',
-    quantity: 7,
-    salePrice: 11000,
-    minPrice: 10000,
-    imageUrl: 'https://picsum.photos/id/2/80/80',
-    stockAlerte: 3,
-    isLowStock: true,
-  },
-  {
-    id: 'P-003',
-    name: 'Sucre blanc 1kg',
-    quantity: 42,
-    salePrice: 1700,
-    minPrice: 1550,
-    imageUrl: 'https://picsum.photos/id/3/80/80',
-    stockAlerte: 10,
-    isLowStock: false,
-  },
-  {
-    id: 'P-004',
-    name: 'Savon lessive (lot x12)',
-    quantity: 4,
-    salePrice: 9300,
-    minPrice: 8600,
-    imageUrl: 'https://picsum.photos/id/4/80/80',
-    stockAlerte: 2,
-    isLowStock: true,
-  },
-];
-
 // Taux de change fictif (1 USD = 2200 FC) – à remplacer par valeur réelle plus tard
 const EXCHANGE_RATE = 2200;
 
-// ---------- Composants internes ----------
+// ---------- Composants internes -----------
 const ProductCard = memo(function ProductCard({
   product,
   onAddToCart,
@@ -109,7 +55,7 @@ const ProductCard = memo(function ProductCard({
             <h3 className="font-semibold text-gray-900">{product.name}</h3>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
               <span className="font-medium text-indigo-600">{formatFc(product.salePrice)}</span>
-              <span className="text-gray-500">Stock: {product.quantity}</span>
+              <span className="text-gray-600">Stock: {product.quantity}</span>
               {product.isLowStock && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
                   <AlertTriangle className="h-3 w-3" />
@@ -163,8 +109,8 @@ const CartItemRow = memo(function CartItemRow({
         </div>
         <div className="grid grid-cols-2 gap-3 text-sm">
           <div>
-            <label className="block text-xs text-gray-500">Quantité</label>
-            <div className="flex items-center gap-1 mt-1">
+            <label className="block text-xs text-gray-600">Quantité</label>
+            <div className="flex items-center gap-1 mt-1 text-gray-700">
               <button
                 onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
                 className="rounded border border-gray-300 p-1 hover:bg-gray-100"
@@ -202,7 +148,7 @@ const CartItemRow = memo(function CartItemRow({
                 const val = parseFloat(e.target.value);
                 if (!isNaN(val) && val >= 0) onUpdatePrice(item.id, val);
               }}
-              className="mt-1"
+              className="mt-1 text-gray-700"
               min={0}
               step={100}
             />
@@ -224,9 +170,29 @@ const CartItemRow = memo(function CartItemRow({
 
 // ---------- Page principale ----------
 export default function EmployeeSalesPage() {
-  const [products] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Chargement des produits depuis Supabase
+  useEffect(() => {
+    const loadProducts = async () => {
+      setIsLoading(true);
+      const result = await getProducts();
+      if (result.success && result.data) {
+        setProducts(result.data);
+        setError(null);
+      } else {
+        setError(result.error || 'Erreur de chargement des produits');
+      }
+      setIsLoading(false);
+    };
+    loadProducts();
+  }, []);
 
   // Filtrage des produits
   const filteredProducts = useMemo(() => {
@@ -240,14 +206,12 @@ export default function EmployeeSalesPage() {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
-        // Si déjà présent, on incrémente la quantité (sans dépasser le stock)
         const newQty = Math.min(existing.quantity + 1, product.quantity);
         if (newQty === existing.quantity) return prev;
         return prev.map((item) =>
           item.id === product.id ? { ...item, quantity: newQty } : item
         );
       }
-      // Nouvel article
       return [
         ...prev,
         {
@@ -262,7 +226,6 @@ export default function EmployeeSalesPage() {
     });
   }, []);
 
-  // Mise à jour quantité
   const handleUpdateQuantity = useCallback((id: string, quantity: number) => {
     setCart((prev) =>
       prev.map((item) =>
@@ -271,14 +234,12 @@ export default function EmployeeSalesPage() {
     );
   }, []);
 
-  // Mise à jour prix négocié
   const handleUpdatePrice = useCallback((id: string, price: number) => {
     setCart((prev) =>
       prev.map((item) => (item.id === id ? { ...item, negotiatedPrice: price } : item))
     );
   }, []);
 
-  // Suppression du panier
   const handleRemove = useCallback((id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   }, []);
@@ -290,7 +251,6 @@ export default function EmployeeSalesPage() {
 
   const subtotalUsd = useMemo(() => subtotalFc / EXCHANGE_RATE, [subtotalFc]);
 
-  // Vérifications pour validation
   const hasInvalidPrice = useMemo(() => {
     return cart.some((item) => item.negotiatedPrice < item.minPrice);
   }, [cart]);
@@ -301,26 +261,67 @@ export default function EmployeeSalesPage() {
 
   const isCartEmpty = cart.length === 0;
 
-  // Validation (simulation, à connecter à une Server Action plus tard)
-  const handleCheckout = useCallback(() => {
+  // Validation finale : appel à processSale pour chaque article
+  const handleCheckout = useCallback(async () => {
     if (hasInvalidPrice) {
-      alert('Certains produits ont un prix inférieur au prix minimum autorisé.');
+      setError('Certains produits ont un prix inférieur au prix minimum autorisé.');
       return;
     }
     if (hasStockExceed) {
-      alert('La quantité demandée dépasse le stock disponible pour certains produits.');
+      setError('La quantité demandée dépasse le stock disponible pour certains produits.');
       return;
     }
     if (isCartEmpty) {
-      alert('Le panier est vide.');
+      setError('Le panier est vide.');
       return;
     }
-    // Ici appeler la Server Action processSale
-    console.log('Vente finalisée', { cart, total: subtotalFc });
-    alert(`Vente simulée : total ${subtotalFc.toLocaleString()} FC (${subtotalUsd.toFixed(2)} USD)`);
-    // Réinitialiser le panier après validation (optionnel)
-    // setCart([]);
-  }, [cart, hasInvalidPrice, hasStockExceed, isCartEmpty, subtotalFc, subtotalUsd]);
+
+    setIsSubmitting(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    // On envoie chaque article un par un
+    let hasError = false;
+    for (const item of cart) {
+      const result = await processSale(item.id, item.quantity, item.negotiatedPrice);
+      if (!result.success) {
+        setError(`Erreur pour ${item.name} : ${result.message}`);
+        hasError = true;
+        break;
+      }
+    }
+
+    if (!hasError) {
+      setSuccessMessage('Vente finalisée avec succès !');
+      // Vider le panier
+      setCart([]);
+      // Recharger les produits pour mettre à jour les stocks
+      const refreshed = await getProducts();
+      if (refreshed.success && refreshed.data) {
+        setProducts(refreshed.data);
+      }
+      // Effacer le message de succès après 3 secondes
+      setTimeout(() => setSuccessMessage(null), 3000);
+    }
+
+    setIsSubmitting(false);
+  }, [cart, hasInvalidPrice, hasStockExceed, isCartEmpty]);
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-gray-500">Chargement des produits...</div>
+      </div>
+    );
+  }
+
+  if (error && products.length === 0) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="text-red-600">Erreur : {error}</div>
+      </div>
+    );
+  }
 
   return (
     <section className="mx-auto w-full max-w-7xl">
@@ -364,7 +365,7 @@ export default function EmployeeSalesPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
-                <p className="py-8 text-center text-gray-500">Aucun article dans le panier</p>
+                <p className="py-8 text-center text-gray-600">Aucun article dans le panier</p>
               ) : (
                 <>
                   <div className="max-h-96 overflow-y-auto pr-1">
@@ -399,13 +400,23 @@ export default function EmployeeSalesPage() {
                         Quantité supérieure au stock disponible
                       </div>
                     )}
+                    {error && (
+                      <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">
+                        {error}
+                      </div>
+                    )}
+                    {successMessage && (
+                      <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">
+                        {successMessage}
+                      </div>
+                    )}
                     <Button
                       variant="primary"
                       fullWidth
                       onClick={handleCheckout}
-                      disabled={hasInvalidPrice || hasStockExceed || isCartEmpty}
+                      disabled={hasInvalidPrice || hasStockExceed || isCartEmpty || isSubmitting}
                     >
-                      Finaliser la vente
+                      {isSubmitting ? 'Traitement...' : 'Finaliser la vente'}
                     </Button>
                   </div>
                 </>
