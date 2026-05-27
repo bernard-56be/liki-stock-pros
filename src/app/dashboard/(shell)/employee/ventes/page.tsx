@@ -2,27 +2,85 @@
 
 import { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import Image from 'next/image';
-import { Search, Plus, Minus, Trash2, AlertTriangle, ShoppingCart } from 'lucide-react';
+import { Search, Minus, Trash2, AlertTriangle, ShoppingCart, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
+
+const ITEMS_PER_PAGE = 6;
+const EXCHANGE_RATE = 2200; // 1 USD = 2200 FC
 
 type CartItem = {
   id: string;
   name: string;
-  quantity: number;           // quantité demandée
-  negotiatedPrice: number;    // prix unitaire négocié (FC)
-  minPrice: number;           // prix minimum autorisé (pour validation)
-  maxStock: number;           // stock maximum disponible
+  quantity: number;
+  negotiatedPrice: number;
+  minPrice: number;
+  maxStock: number;
+  imageUrl: string | null;
 };
 
-// Taux de change fictif (1 USD = 2200 FC) – à remplacer par valeur réelle plus tard
-const EXCHANGE_RATE = 2200;
+// ---------- SearchBar ----------
+const SearchBar = memo(function SearchBar({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="relative">
+      <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Rechercher un produit..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-4 text-sm text-gray-700 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+      />
+    </div>
+  );
+});
 
-// ---------- Composants internes -----------
-const ProductCard = memo(function ProductCard({
+// ---------- Pagination (identique à l'inventaire) ----------
+const Pagination = memo(function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-t border-gray-100 pt-4">
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        Précédent
+      </Button>
+      <span className="text-sm font-semibold text-gray-600">
+        Page {currentPage} sur {totalPages}
+      </span>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Suivant
+      </Button>
+    </div>
+  );
+});
+
+// ---------- Ligne du tableau desktop ----------
+const ProductRow = memo(function ProductRow({
   product,
   onAddToCart,
 }: {
@@ -32,46 +90,108 @@ const ProductCard = memo(function ProductCard({
   const formatFc = (value: number) => `${value.toLocaleString('fr-FR')} FC`;
 
   return (
-    <Card className="border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm hover:shadow-md transition-all">
-      <CardContent className="p-3">
-        <div className="flex items-start gap-3">
-          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md bg-gray-100">
+    <tr className="border-t border-gray-100 hover:bg-gray-50">
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-md bg-gray-100">
             {product.imageUrl ? (
               <Image
                 src={product.imageUrl}
                 alt={product.name}
-                width={56}
-                height={56}
+                width={40}
+                height={40}
                 className="h-full w-full object-cover"
                 loading="lazy"
               />
             ) : (
-              <div className="flex h-full w-full items-center justify-center bg-gray-200 text-lg">
+              <div className="flex h-full w-full items-center justify-center bg-gray-200 text-xs text-gray-500">
+                📦
+              </div>
+            )}
+          </div>
+          <span className="font-medium text-gray-900">{product.name}</span>
+          {product.isLowStock && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+              <AlertTriangle className="h-3 w-3" />
+              Stock bas
+            </span>
+          )}
+        </div>
+      </td>
+      <td className="px-4 py-3 text-center text-gray-700">{product.quantity}</td>
+      <td className="px-4 py-3 text-right text-gray-700">{formatFc(product.salePrice)}</td>
+      <td className="px-4 py-3 text-right">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onAddToCart(product)}
+          disabled={product.quantity === 0}
+          className="shrink-0"
+          aria-label="Ajouter au panier"
+        >
+          <ShoppingCart className="h-4 w-4" />
+        </Button>
+      </td>
+    </tr>
+  );
+});
+
+// ---------- Carte mobile ----------
+const MobileProductCard = memo(function MobileProductCard({
+  product,
+  onAddToCart,
+}: {
+  product: Product;
+  onAddToCart: (product: Product) => void;
+}) {
+  const formatFc = (value: number) => `${value.toLocaleString('fr-FR')} FC`;
+
+  return (
+    <Card className="border border-gray-200 shadow-sm">
+      <CardContent className="space-y-2 p-4">
+        <div className="flex items-start gap-3">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            {product.imageUrl ? (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                width={48}
+                height={48}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-200 text-xs text-gray-500">
                 📦
               </div>
             )}
           </div>
           <div className="flex-1">
-            <h3 className="font-semibold text-gray-900">{product.name}</h3>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-              <span className="font-medium text-indigo-600">{formatFc(product.salePrice)}</span>
-              <span className="text-gray-600">Stock: {product.quantity}</span>
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900">{product.name}</h3>
               {product.isLowStock && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                  <AlertTriangle className="h-3 w-3" />
-                  Stock bas
-                </span>
+                <AlertTriangle className="h-4 w-4 text-red-500" />
               )}
             </div>
+            <p className="text-sm text-gray-600">Stock : {product.quantity}</p>
           </div>
+        </div>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
+          <span className="font-bold text-gray-900">Prix vente :</span>
+          <span className="text-right font-medium text-gray-700">
+            {formatFc(product.salePrice)}
+          </span>
+        </div>
+        <div className="flex justify-end pt-2">
           <Button
-            size="sm"
             variant="outline"
+            size="sm"
             onClick={() => onAddToCart(product)}
             disabled={product.quantity === 0}
-            className="shrink-0"
+            className="flex items-center gap-1"
           >
-            <Plus className="mr-1 h-3 w-3" /> Ajouter
+            <ShoppingCart className="h-4 w-4" />
+            Ajouter
           </Button>
         </div>
       </CardContent>
@@ -79,90 +199,85 @@ const ProductCard = memo(function ProductCard({
   );
 });
 
+// ---------- Élément du panier ----------
 const CartItemRow = memo(function CartItemRow({
   item,
   onUpdateQuantity,
-  onUpdatePrice,
   onRemove,
 }: {
   item: CartItem;
   onUpdateQuantity: (id: string, quantity: number) => void;
-  onUpdatePrice: (id: string, price: number) => void;
   onRemove: (id: string) => void;
 }) {
   const total = item.quantity * item.negotiatedPrice;
   const isPriceBelowMin = item.negotiatedPrice < item.minPrice;
-  const isQuantityExceedStock = item.quantity > item.maxStock;
 
   return (
     <div className="border-b border-gray-100 py-3 last:border-0">
       <div className="flex flex-col gap-2">
-        <div className="flex items-start justify-between">
-          <h4 className="font-medium text-gray-900">{item.name}</h4>
+        <div className="flex items-start gap-3">
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md bg-gray-100">
+            {item.imageUrl ? (
+              <Image
+                src={item.imageUrl}
+                alt={item.name}
+                width={48}
+                height={48}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-gray-200 text-xs">
+                📦
+              </div>
+            )}
+          </div>
+          <div className="flex-1">
+            <h4 className="font-medium text-gray-900">{item.name}</h4>
+            <p className="text-sm text-gray-600">
+              {item.negotiatedPrice.toLocaleString()} FC
+            </p>
+          </div>
+        </div>
+
+        {/* Conteneur en forme de pilule pour les actions */}
+        <div className="mt-2 flex items-center justify-between rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5">
           <button
             onClick={() => onRemove(item.id)}
-            className="rounded p-1 text-gray-400 hover:text-red-600 transition-colors"
+            className="rounded-full p-1 text-gray-500 transition-colors hover:bg-amber-200 hover:text-red-600"
             aria-label="Supprimer"
           >
             <Trash2 className="h-4 w-4" />
           </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3 text-sm">
-          <div>
-            <label className="block text-xs text-gray-600">Quantité</label>
-            <div className="flex items-center gap-1 mt-1 text-gray-700">
-              <button
-                onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                className="rounded border border-gray-300 p-1 hover:bg-gray-100"
-              >
-                <Minus className="h-3 w-3" />
-              </button>
-              <Input
-                type="number"
-                value={item.quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value);
-                  if (!isNaN(val) && val >= 1) onUpdateQuantity(item.id, val);
-                }}
-                className="w-16 text-center"
-                min={1}
-                max={item.maxStock}
-              />
-              <button
-                onClick={() => onUpdateQuantity(item.id, Math.min(item.maxStock, item.quantity + 1))}
-                className="rounded border border-gray-300 p-1 hover:bg-gray-100"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            </div>
-            {isQuantityExceedStock && (
-              <p className="text-xs text-red-500 mt-1">Stock max: {item.maxStock}</p>
-            )}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+              className="rounded-full p-1 hover:bg-amber-200"
+            >
+              <Minus className="h-3 w-3 text-gray-400" />
+            </button>
+            <span className="w-8 text-center font-medium text-gray-800">
+              {item.quantity}
+            </span>
+            <button
+              onClick={() => onUpdateQuantity(item.id, Math.min(item.maxStock, item.quantity + 1))}
+              className="rounded-full p-1 hover:bg-amber-200"
+            >
+              <Plus className="h-3 w-3 text-gray-400" />
+            </button>
           </div>
-          <div>
-            <label className="block text-xs text-gray-500">Prix unitaire (FC)</label>
-            <Input
-              type="number"
-              value={item.negotiatedPrice}
-              onChange={(e) => {
-                const val = parseFloat(e.target.value);
-                if (!isNaN(val) && val >= 0) onUpdatePrice(item.id, val);
-              }}
-              className="mt-1 text-gray-700"
-              min={0}
-              step={100}
-            />
-            {isPriceBelowMin && (
-              <p className="text-xs text-red-500 mt-1">
-                Min autorisé: {item.minPrice.toLocaleString()} FC
-              </p>
-            )}
-          </div>
+          <div className="w-6" /> {/* espacement pour équilibrer */}
         </div>
+
         <div className="flex justify-between text-sm">
-          <span className="text-gray-600">Total ligne:</span>
+          <span className="text-gray-600">Total ligne :</span>
           <span className="font-semibold text-gray-900">{total.toLocaleString()} FC</span>
         </div>
+        {isPriceBelowMin && (
+          <p className="text-xs text-red-600">
+            Prix inférieur au minimum autorisé ({item.minPrice.toLocaleString()} FC)
+          </p>
+        )}
       </div>
     </div>
   );
@@ -172,13 +287,15 @@ const CartItemRow = memo(function CartItemRow({
 export default function EmployeeSalesPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Chargement des produits depuis Supabase
+  // Chargement des produits
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoading(true);
@@ -194,14 +311,25 @@ export default function EmployeeSalesPage() {
     loadProducts();
   }, []);
 
-  // Filtrage des produits
+  // Filtrage + pagination
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
     const lower = searchTerm.toLowerCase();
     return products.filter((p) => p.name.toLowerCase().includes(lower));
   }, [products, searchTerm]);
 
-  // Ajout au panier
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredProducts, currentPage]);
+
+  const handleSearch = useCallback((term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  }, []);
+
+  // Gestion du panier
   const handleAddToCart = useCallback((product: Product) => {
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
@@ -221,6 +349,7 @@ export default function EmployeeSalesPage() {
           negotiatedPrice: product.salePrice,
           minPrice: product.minPrice,
           maxStock: product.quantity,
+          imageUrl: product.imageUrl,
         },
       ];
     });
@@ -234,34 +363,21 @@ export default function EmployeeSalesPage() {
     );
   }, []);
 
-  const handleUpdatePrice = useCallback((id: string, price: number) => {
-    setCart((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, negotiatedPrice: price } : item))
-    );
-  }, []);
-
   const handleRemove = useCallback((id: string) => {
     setCart((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Calculs du panier
+  // Calculs totaux
   const subtotalFc = useMemo(() => {
     return cart.reduce((sum, item) => sum + item.quantity * item.negotiatedPrice, 0);
   }, [cart]);
 
   const subtotalUsd = useMemo(() => subtotalFc / EXCHANGE_RATE, [subtotalFc]);
-
-  const hasInvalidPrice = useMemo(() => {
-    return cart.some((item) => item.negotiatedPrice < item.minPrice);
-  }, [cart]);
-
-  const hasStockExceed = useMemo(() => {
-    return cart.some((item) => item.quantity > item.maxStock);
-  }, [cart]);
-
+  const hasInvalidPrice = useMemo(() => cart.some((item) => item.negotiatedPrice < item.minPrice), [cart]);
+  const hasStockExceed = useMemo(() => cart.some((item) => item.quantity > item.maxStock), [cart]);
   const isCartEmpty = cart.length === 0;
 
-  // Validation finale : appel à processSale pour chaque article
+  // Finalisation de la vente
   const handleCheckout = useCallback(async () => {
     if (hasInvalidPrice) {
       setError('Certains produits ont un prix inférieur au prix minimum autorisé.');
@@ -280,7 +396,6 @@ export default function EmployeeSalesPage() {
     setError(null);
     setSuccessMessage(null);
 
-    // On envoie chaque article un par un
     let hasError = false;
     for (const item of cart) {
       const result = await processSale(item.id, item.quantity, item.negotiatedPrice);
@@ -293,19 +408,20 @@ export default function EmployeeSalesPage() {
 
     if (!hasError) {
       setSuccessMessage('Vente finalisée avec succès !');
-      // Vider le panier
       setCart([]);
-      // Recharger les produits pour mettre à jour les stocks
+      // Recharger les produits
       const refreshed = await getProducts();
       if (refreshed.success && refreshed.data) {
         setProducts(refreshed.data);
       }
-      // Effacer le message de succès après 3 secondes
       setTimeout(() => setSuccessMessage(null), 3000);
+      setIsSheetOpen(false);
     }
-
     setIsSubmitting(false);
   }, [cart, hasInvalidPrice, hasStockExceed, isCartEmpty]);
+
+  const openCartSheet = () => setIsSheetOpen(true);
+  const closeCartSheet = () => setIsSheetOpen(false);
 
   if (isLoading) {
     return (
@@ -324,107 +440,143 @@ export default function EmployeeSalesPage() {
   }
 
   return (
-    <section className="mx-auto w-full max-w-7xl">
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Colonne gauche : produits */}
-        <div className="flex-1 space-y-4">
-          <Card className="border border-gray-100 bg-white/90 shadow-sm backdrop-blur-sm">
-            <CardHeader className="pb-2">
-              <CardTitle>Produits disponibles</CardTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher un produit..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-4 text-sm text-gray-600 outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {filteredProducts.length === 0 ? (
-                <p className="py-8 text-center text-gray-500">Aucun produit trouvé</p>
-              ) : (
-                filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
+    <section className="mx-auto w-full max-w-6xl">
+      <Card className="border border-gray-100 bg-white/90 shadow-sm backdrop-blur-sm">
+        <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div>
+            <CardTitle>Ventes</CardTitle>
+            <p className="text-sm text-gray-600">
+              Sélectionnez les produits à vendre (pagination 6/page)
+            </p>
+          </div>
+          <Button onClick={openCartSheet} className="relative" size="lg">
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Panier
+            {cart.length > 0 && (
+              <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-sm text-white">
+                {`(${cart.length})`}
+              </span>
+            )}
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <SearchBar value={searchTerm} onChange={handleSearch} />
 
-        {/* Colonne droite : panier */}
-        <div className="w-full lg:w-96">
-          <Card className="sticky top-20 border border-gray-100 bg-white/90 shadow-sm backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Panier
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {cart.length === 0 ? (
-                <p className="py-8 text-center text-gray-600">Aucun article dans le panier</p>
-              ) : (
-                <>
-                  <div className="max-h-96 overflow-y-auto pr-1">
-                    {cart.map((item) => (
-                      <CartItemRow
-                        key={item.id}
-                        item={item}
-                        onUpdateQuantity={handleUpdateQuantity}
-                        onUpdatePrice={handleUpdatePrice}
-                        onRemove={handleRemove}
-                      />
-                    ))}
-                  </div>
-                  <div className="border-t border-gray-200 pt-3 space-y-2">
-                    <div className="flex justify-between text-base font-semibold">
-                      <span>Total (FC):</span>
-                      <span>{subtotalFc.toLocaleString()} FC</span>
-                    </div>
-                    <div className="flex justify-between text-sm text-gray-600">
-                      <span>Total (USD):</span>
-                      <span>{subtotalUsd.toFixed(2)} $</span>
-                    </div>
-                    {hasInvalidPrice && (
-                      <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">
-                        <AlertTriangle className="h-4 w-4" />
-                        Certains prix sont en dessous du minimum autorisé
-                      </div>
-                    )}
-                    {hasStockExceed && (
-                      <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-sm text-red-700">
-                        <AlertTriangle className="h-4 w-4" />
-                        Quantité supérieure au stock disponible
-                      </div>
-                    )}
-                    {error && (
-                      <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700">
-                        {error}
-                      </div>
-                    )}
-                    {successMessage && (
-                      <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700">
-                        {successMessage}
-                      </div>
-                    )}
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      onClick={handleCheckout}
-                      disabled={hasInvalidPrice || hasStockExceed || isCartEmpty || isSubmitting}
-                    >
-                      {isSubmitting ? 'Traitement...' : 'Finaliser la vente'}
-                    </Button>
-                  </div>
-                </>
+          {/* Version desktop (tableau) */}
+          <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-left text-gray-700">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Produit</th>
+                  <th className="px-4 py-3 text-center font-semibold">Stock</th>
+                  <th className="px-4 py-3 text-right font-semibold">Prix de vente</th>
+                  <th className="px-4 py-3 text-center font-semibold">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedProducts.map((product) => (
+                  <ProductRow key={product.id} product={product} onAddToCart={handleAddToCart} />
+                ))}
+                {paginatedProducts.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="py-8 text-center text-gray-500">
+                      Aucun produit trouvé
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Version mobile (cartes) */}
+          <div className="grid gap-3 md:hidden">
+            {paginatedProducts.map((product) => (
+              <MobileProductCard key={product.id} product={product} onAddToCart={handleAddToCart} />
+            ))}
+            {paginatedProducts.length === 0 && (
+              <p className="py-8 text-center text-gray-500">Aucun produit trouvé</p>
+            )}
+          </div>
+
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Panier dans un AnimatedSheet */}
+      <AnimatedSheet isOpen={isSheetOpen} onClose={closeCartSheet} side="right" className="max-w-md">
+        <div className="flex h-full flex-col">
+          <div className="flex items-center justify-between border-b border-gray-200 p-4">
+            <h2 className="text-xl font-semibold text-gray-800">Panier</h2>
+            <button onClick={closeCartSheet} className="rounded-full p-1 hover:bg-gray-100">
+              <X className="h-5 w-5 text-gray-600" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            {cart.length === 0 ? (
+              <p className="py-8 text-center text-gray-500">Aucun article dans le panier</p>
+            ) : (
+              <div className="space-y-4">
+                {cart.map((item) => (
+                  <CartItemRow
+                    key={item.id}
+                    item={item}
+                    onUpdateQuantity={handleUpdateQuantity}
+                    onRemove={handleRemove}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+          {cart.length > 0 && (
+            <div className="border-t border-gray-200 p-4 space-y-3">
+              <div className="flex justify-between text-base font-semibold">
+                <span className="text-gray-800">Total (FC) :</span>
+                <span className="text-gray-900">{subtotalFc.toLocaleString()} FC</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
+                <span>Total (USD) :</span>
+                <span>{subtotalUsd.toFixed(2)} $</span>
+              </div>
+              {hasInvalidPrice && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-sm text-red-700 border border-red-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  Certains prix sont en dessous du minimum autorisé
+                </div>
               )}
-            </CardContent>
-          </Card>
+              {hasStockExceed && (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 p-2 text-sm text-red-700 border border-red-200">
+                  <AlertTriangle className="h-4 w-4" />
+                  Quantité supérieure au stock disponible
+                </div>
+              )}
+              {error && (
+                <div className="rounded-lg bg-red-50 p-2 text-sm text-red-700 border border-red-200">
+                  {error}
+                </div>
+              )}
+              {successMessage && (
+                <div className="rounded-lg bg-green-50 p-2 text-sm text-green-700 border border-green-200">
+                  {successMessage}
+                </div>
+              )}
+              <Button
+                variant="primary"
+                fullWidth
+                onClick={handleCheckout}
+                disabled={hasInvalidPrice || hasStockExceed || isCartEmpty || isSubmitting}
+              >
+                {isSubmitting ? 'Traitement...' : 'Finaliser la vente'}
+              </Button>
+            </div>
+          )}
         </div>
-      </div>
+      </AnimatedSheet>
     </section>
   );
 }
