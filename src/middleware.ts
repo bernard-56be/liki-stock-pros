@@ -8,6 +8,7 @@ export async function middleware(request: NextRequest) {
     },
   });
 
+  // 1. Initialisation sécurisée du client Supabase (Version Next.js 15+ sans warning ESLint)
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,19 +18,19 @@ export async function middleware(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          // 1. Mettre à jour les cookies de la requête pour les Server Components
+          // Mettre à jour les cookies de la requête
           cookiesToSet.forEach(({ name, value }) => {
             request.cookies.set(name, value);
           });
 
-          // 2. Recréer la réponse avec les nouveaux headers de requête (Essentiel Next.js 15+)
+          // Recréer la réponse avec les nouveaux headers de requête
           response = NextResponse.next({
             request: {
               headers: request.headers,
             },
           });
 
-          // 3. Mettre à jour les cookies de la réponse pour le navigateur
+          // Mettre à jour les cookies de la réponse pour le navigateur
           cookiesToSet.forEach(({ name, value, options }) => {
             response.cookies.set(name, value, options);
           });
@@ -38,28 +39,39 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // getUser() déclenchera setAll si la session a besoin d'un rafraîchissement
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // 2. Récupération sécurisée de l'utilisateur (Déclenche le rafraîchissement automatique des tokens)
+  const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname, search } = request.nextUrl;
+  
+  // Définition des groupes de routes
+  const isOwnerRoute = pathname.startsWith('/owner');
   const isDashboardRoute = pathname.startsWith('/dashboard');
+  const isProtectedRoute = isDashboardRoute || isOwnerRoute;
   const isAuthRoute = pathname === '/auth/login' || pathname === '/auth/register';
 
-  if (isDashboardRoute && !user) {
+  // Extraction propre du rôle depuis les métadonnées de l'utilisateur
+  const role = user?.user_metadata?.role;
+
+  // 🔍 LOGS DE TEST (Tes mouchards pour la console)
+  console.log("=== 🛣️ PASSAGE MIDDLEWARE ===");
+  console.log(" Target URL :", pathname);
+  console.log(" User Status :", user ? `Connecté (${role})` : "Non connecté");
+
+  // RÈGLE UNIQUE 1 : Si l'utilisateur n'est pas connecté et tente d'accéder à une page privée
+  if (isProtectedRoute && !user) {
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = '/auth/login';
     loginUrl.searchParams.set('next', `${pathname}${search}`);
     
     const redirectRes = NextResponse.redirect(loginUrl);
-    // Transférer tous les cookies (incluant les rafraîchis) à la redirection
     response.cookies.getAll().forEach((cookie) => {
       redirectRes.cookies.set(cookie);
     });
     return redirectRes;
   }
 
+  // RÈGLE UNIQUE 2 : Si l'utilisateur est déjà connecté et tente d'aller sur Login/Register
   if (isAuthRoute && user) {
     const dashboardUrl = request.nextUrl.clone();
     dashboardUrl.pathname = '/dashboard';
@@ -72,9 +84,19 @@ export async function middleware(request: NextRequest) {
     return redirectRes;
   }
 
+  // RÈGLE UNIQUE 3 (TA MISSION SEMAINE 4) : Bloquer un employé qui tente de forcer une route /owner
+  if (role === 'employee' && isOwnerRoute) {
+    console.log("🚫 ACCÈS SÉCURISÉ : Employé bloqué, redirection automatique !");
+    
+    // Ici, redirige vers l'URL exacte de votre caisse (ex: '/dashboard/employee/ventes' ou '/ventes')
+    const salesUrl = new URL('/dashboard/employee/ventes', request.url);
+    return NextResponse.redirect(salesUrl);
+  }
+
   return response;
 }
 
+// Le matcher global de l'application externe qui intercepte tout sauf les fichiers statiques
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
