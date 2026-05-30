@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchDashboardData } from "@/lib/actions/dashboard";
 import type { DailyRevenue, TopProduitVendu } from "@/types/types/database.types";
-import KPICards from "./kpi-cards.tsx";
+import KPICards from "./kpi-cards";
 import SalesChart from "./sales-chart";
 
 export default function OwnerDashboardPage() {
@@ -13,21 +13,22 @@ export default function OwnerDashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await fetchDashboardData();
-        setDailyRevenue(data.dailyRevenue);
-        setTopProducts(data.topProducts);
-        setRuptureCount(data.ruptureCount);
-      } catch (err: any) {
-        setError(err.message || "Erreur inconnue");
-      } finally {
-        setLoading(false);
-      }
+useEffect(() => {
+  async function load() {
+    try {
+      const data = await fetchDashboardData();
+      setDailyRevenue(data.dailyRevenue);
+      setTopProducts(data.topProducts);
+      setRuptureCount(data.ruptureCount);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+    } finally {
+      setLoading(false);
     }
-    load();
-  }, []);
+  }
+  load();
+}, []);
 
   if (loading) {
     return (
