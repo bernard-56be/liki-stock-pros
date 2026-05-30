@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 // Importation des Server Actions
 import { getInitialProfileStatus, signOutAction } from '@/lib/actions/pending';
 
-// Typage strict pour le Realtime (Exigence de la semaine 3)
+// Typage strict pour le Realtime
 type ProfilePayload = {
   new: {
     status: string;
@@ -24,6 +24,9 @@ export default function PendingPage() {
   const supabase = createClient();
 
   useEffect(() => {
+    // Variable locale pour stocker la référence du canal et la rendre accessible au nettoyage
+    let channel: any = null;
+
     const initPage = async () => {
       // 1. Appel du Server Action pour le statut initial
       const { user, status, error: serverError } = await getInitialProfileStatus();
@@ -40,7 +43,7 @@ export default function PendingPage() {
         return;
       }
 
-      // Redirection immédiate si déjà actif
+      // Redirection immédiate si déjà actif ou rejeté
       if (status === 'active') {
         router.push('/dashboard/employee/ventes');
         return;
@@ -53,8 +56,8 @@ export default function PendingPage() {
       // L'utilisateur est bien 'pending', on arrête le loader initial
       setLoading(false);
 
-      // 2. Mise en place de l'écoute Temps Réel (Client-side)
-      const channel = supabase
+      // 2. Initialisation et configuration des écouteurs de changements (AVANT le subscribe)
+      channel = supabase
         .channel(`profile_${user.id}`)
         .on(
           'postgres_changes',
@@ -72,16 +75,22 @@ export default function PendingPage() {
               setError("Votre compte a été refusé par le propriétaire.");
             }
           }
-        )
-        .subscribe();
+        );
 
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // 3. Activation de l'écoute une fois la configuration terminée
+      channel.subscribe();
     };
 
     initPage();
+
+    // NETTOYAGE CRUCIAL : Placé correctement au niveau du useEffect pour détruire le canal au re-render
+    return () => {
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [router, supabase]);
+
 
   if (loading) {
     return (
@@ -135,7 +144,7 @@ export default function PendingPage() {
             </div>
 
             <Button
-              variant="outline" // Correction appliquée (exit variant="ghost")
+              variant="outline"
               className="text-gray-500 hover:text-red-600 w-full"
               onClick={async () => {
                 await signOutAction(); // Utilisation du Server Action
