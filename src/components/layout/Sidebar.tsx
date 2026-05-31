@@ -10,6 +10,7 @@ export type DashboardRole = 'owner' | 'employee';
 type NavItem = { href: string; label: string };
 
 const ownerNav: NavItem[] = [
+  { href: '/dashboard/owner/dashboard', label: 'Accueil' },
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
   { href: '/dashboard/owner/validation', label: 'Validation' },
   { href: '/profile', label: 'Profile' }, 
