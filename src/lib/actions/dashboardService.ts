@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import type { DailyRevenue, TopProduitVendu } from '@/types/types/database.types'
+import type { DailyRevenue, TopProduitVendu } from '@/types/database.types'
 
 export interface DashboardData {
   dailyRevenue: DailyRevenue[]
