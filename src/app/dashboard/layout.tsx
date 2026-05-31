@@ -1,19 +1,9 @@
-import { ExchangeRateProvider } from '@/contexts/exchangeRateContext';
-import { CurrencyDisplayProvider } from '@/contexts/currencyDisplayContext';
-import { CurrencySelector } from '@/components/shared/currencySelector';
+import type { ReactNode } from 'react';
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardRootLayout({ children }: { children: ReactNode }) {
   return (
-    <ExchangeRateProvider>
-      <CurrencyDisplayProvider>
-        <div className="min-h-screen bg-gray-50">
-          <header className="flex justify-between items-center p-4 bg-white shadow">
-            <h1 className="text-xl font-bold">Liki-Stock Pro</h1>
-            <CurrencySelector />
-          </header>
-          <main>{children}</main>
-        </div>
-      </CurrencyDisplayProvider>
-    </ExchangeRateProvider>
+    <div className="min-h-screen w-full flex flex-col bg-linear-to-br from-[#e2e2e2] to-[#c9d6ff]">
+      {children}
+    </div>
   );
 }
