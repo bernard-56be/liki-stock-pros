@@ -84,11 +84,11 @@ export async function middleware(request: NextRequest) {
     return redirectRes;
   }
 
-  // RÈGLE UNIQUE 3 (TA MISSION SEMAINE 4) : Bloquer un employé qui tente de forcer une route /owner
+  // RÈGLE UNIQUE 3 : Bloquer un employé qui tente de forcer une route /owner
   if (role === 'employee' && isOwnerRoute) {
     console.log("🚫 ACCÈS SÉCURISÉ : Employé bloqué, redirection automatique !");
     
-    // Ici, redirige vers l'URL exacte de votre caisse (ex: '/dashboard/employee/ventes' ou '/ventes')
+    // Redirection vers l'URL 
     const salesUrl = new URL('/dashboard/employee/ventes', request.url);
     return NextResponse.redirect(salesUrl);
   }
@@ -96,7 +96,6 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
-// Le matcher global de l'application externe qui intercepte tout sauf les fichiers statiques
 export const config = {
   matcher: [
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
