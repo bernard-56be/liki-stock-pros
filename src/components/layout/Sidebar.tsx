@@ -10,12 +10,15 @@ export type DashboardRole = 'owner' | 'employee';
 type NavItem = { href: string; label: string };
 
 const ownerNav: NavItem[] = [
+  { href: '/dashboard/owner/dashboard', label: 'Accueil' },
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
-  { href: '/dashboard/owner/validation', label: 'Validation' }, // 👈 La nouvelle ligne est ici !
+  { href: '/dashboard/owner/validation', label: 'Validation' },
+  { href: '/settings', label: 'Paramètres' }, 
 ];
 
 const employeeNav: NavItem[] = [
   { href: '/dashboard/employee/ventes', label: 'Ventes' },
+  { href: '/settings', label: 'Paramètres' },
 ];
 
 function navForRole(role: DashboardRole): NavItem[] {
@@ -61,7 +64,7 @@ export function Sidebar({ role }: { role: DashboardRole }) {
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Logo / titre visible uniquement sur desktop (car header prend déjà la place sur mobile) */}
+        {/* Logo / titre visible uniquement sur desktop */}
         <div className="mb-6 hidden px-2 md:block">
           <p className="text-xs font-semibold uppercase tracking-wide text-purple-800/80">Liki-Stock</p>
           <p className="text-lg font-bold text-gray-900">Pro</p>

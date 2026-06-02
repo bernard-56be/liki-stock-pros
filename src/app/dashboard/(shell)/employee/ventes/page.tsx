@@ -44,7 +44,7 @@ const SearchBar = memo(function SearchBar({
   );
 });
 
-// ---------- Pagination (identique à l'inventaire) ----------
+// ---------- Pagination ----------
 const Pagination = memo(function Pagination({
   currentPage,
   totalPages,

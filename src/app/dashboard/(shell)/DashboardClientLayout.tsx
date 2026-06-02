@@ -37,7 +37,7 @@ export function DashboardClientLayout({
 
   return (
     <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
-      <div className="flex min-h-screen flex-col">
+      <div className="flex min-h-screen flex-col bg-gray-100 w-full">
         <Header userName={userName} userAvatar={userAvatar} />
         <div className="flex flex-1 flex-col md:flex-row">
           <Sidebar role={role} />
