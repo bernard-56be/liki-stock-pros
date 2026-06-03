@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createNotification } from "@/lib/actions/notifications";
 
 export async function processSale(
   productId: string,
@@ -67,7 +68,42 @@ export async function processSale(
       };
     }
 
-    // 4. Retourner le résultat exact de la fonction SQL
+    // 4. Si la vente a réussi, vérifier le stock critique pour alerter le propriétaire
+    if (data.success) {
+      const newStock = data.new_stock;
+
+      // Récupérer les infos du produit (nom, seuil critique, boutique_id)
+      const { data: product, error: productError } = await supabase
+        .from("products")
+        .select("name, min_price, boutique_id")
+        .eq("id", productId)
+        .single();
+
+      if (!productError && product) {
+        const seuilCritique = product.min_price; // ou stock_alerte selon votre schéma
+        // Vérifier si le stock est sous le seuil critique
+        if (newStock <= seuilCritique) {
+          // Récupérer le propriétaire de la boutique
+          const { data: boutique, error: boutiqueError } = await supabase
+            .from("boutiques")
+            .select("owner_id")
+            .eq("id", product.boutique_id)
+            .single();
+
+          if (!boutiqueError && boutique?.owner_id) {
+            // Envoyer une notification de type 'danger' au propriétaire
+            await createNotification(
+              boutique.owner_id,
+              "Stock critique",
+              `Le produit "${product.name}" est presque en rupture. Stock restant : ${newStock} unité(s).`,
+              "danger"
+            );
+          }
+        }
+      }
+    }
+
+    // 5. Retourner le résultat exact de la fonction SQL
     return {
       success: data.success,
       message: data.message,
