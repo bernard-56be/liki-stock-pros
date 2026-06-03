@@ -6,9 +6,9 @@ import { createNotification } from "@/lib/actions/notifications";
 export async function processSale(
   productId: string,
   quantity: number,
-  unitPrice: number
+  unitPrice: number // prix unitaire en CDF (déjà converti côté front)
 ) {
-  // 1. Vérifications de base côté serveur avant même d'appeler Supabase
+  // Vérifications de base
   if (!productId || typeof productId !== "string") {
     return {
       success: false,
@@ -40,7 +40,7 @@ export async function processSale(
   try {
     const supabase = await createClient();
 
-    // 2. Vérifier que l'utilisateur est bien connecté
+    // Vérifier l'utilisateur connecté
     const {
       data: { user },
       error: authError,
@@ -53,11 +53,43 @@ export async function processSale(
       };
     }
 
-    // 3. Appeler la fonction process_sale dans Supabase
+    // Récupérer la boutique de l'utilisateur (via son profil)
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("boutique_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile?.boutique_id) {
+      return {
+        success: false,
+        message: "Profil sans boutique associée.",
+      };
+    }
+
+    // Récupérer le taux de change actif de la boutique
+    const { data: boutique, error: boutiqueError } = await supabase
+      .from("boutiques")
+      .select("exchange_rate")
+      .eq("id", profile.boutique_id)
+      .single();
+
+    // Le taux doit être valide (strictement positif) pour la transaction
+    if (boutiqueError || !boutique?.exchange_rate || boutique.exchange_rate <= 0) {
+      return {
+        success: false,
+        message: "Taux de change invalide ou non défini. Contactez le propriétaire.",
+      };
+    }
+
+    const exchangeRate = boutique.exchange_rate;
+
+    // Appeler la fonction SQL process_sale avec le taux officiel de la boutique
     const { data, error } = await supabase.rpc("process_sale", {
       p_product_id: productId,
       p_quantity: quantity,
       p_unit_price: unitPrice,
+      p_exchange_rate: exchangeRate, // Le taux sera utilisé pour l'historique financier
     });
 
     if (error) {
@@ -68,11 +100,10 @@ export async function processSale(
       };
     }
 
-    // 4. Si la vente a réussi, vérifier le stock critique pour alerter le propriétaire
+    // Si la vente réussit, vérifier le stock critique pour alerter le propriétaire
     if (data.success) {
       const newStock = data.new_stock;
 
-      // Récupérer les infos du produit (nom, seuil critique, boutique_id)
       const { data: product, error: productError } = await supabase
         .from("products")
         .select("name, min_price, boutique_id")
@@ -80,20 +111,18 @@ export async function processSale(
         .single();
 
       if (!productError && product) {
-        const seuilCritique = product.min_price; // ou stock_alerte selon votre schéma
-        // Vérifier si le stock est sous le seuil critique
+        // On utilise min_price comme seuil critique (configurable)
+        const seuilCritique = product.min_price;
         if (newStock <= seuilCritique) {
-          // Récupérer le propriétaire de la boutique
-          const { data: boutique, error: boutiqueError } = await supabase
+          const { data: boutiqueOwner, error: ownerError } = await supabase
             .from("boutiques")
             .select("owner_id")
             .eq("id", product.boutique_id)
             .single();
 
-          if (!boutiqueError && boutique?.owner_id) {
-            // Envoyer une notification de type 'danger' au propriétaire
+          if (!ownerError && boutiqueOwner?.owner_id) {
             await createNotification(
-              boutique.owner_id,
+              boutiqueOwner.owner_id,
               "Stock critique",
               `Le produit "${product.name}" est presque en rupture. Stock restant : ${newStock} unité(s).`,
               "danger"
@@ -103,7 +132,6 @@ export async function processSale(
       }
     }
 
-    // 5. Retourner le résultat exact de la fonction SQL
     return {
       success: data.success,
       message: data.message,
