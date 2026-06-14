@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { fetchDashboardData, type DashboardData } from '@/lib/actions/dashboardService'
+import { fetchDashboardData, getFinancialStats, type DashboardData, type FinancialStats } from '@/lib//actions/dashboardService'
 import DashboardKpi from '@/components/DashboardKpi'
 import SalesChart from '@/components/SalesChart'
+import ClosingReport from '@/components/shared/closingReport'
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
+  const [financialStats, setFinancialStats] = useState<FinancialStats | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -14,8 +16,12 @@ export default function OwnerDashboardPage() {
     const load = async () => {
       try {
         setLoading(true)
-        const result = await fetchDashboardData()
-        setData(result)
+        const [dashboardData, stats] = await Promise.all([
+          fetchDashboardData(),
+          getFinancialStats()
+        ])
+        setData(dashboardData)
+        setFinancialStats(stats)
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : 'Erreur inconnue'
         setError(message)
@@ -29,7 +35,7 @@ export default function OwnerDashboardPage() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 p-6">
-        <p className="text-gray-600">Chargement du tableau de bord...</p>
+        <p className="text-gray-600">Chargement...</p>
       </div>
     )
   }
@@ -53,24 +59,23 @@ export default function OwnerDashboardPage() {
       <h1 className="text-2xl font-bold text-gray-900">Tableau de Bord</h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <DashboardKpi
-          title="💰 Chiffre d'Affaires"
-          value={`$${today.chiffre_affaires.toLocaleString()}`}
-          valueColor="text-green-600"
-        />
-        <DashboardKpi
-          title="📈 Bénéfice Net"
-          value={`$${today.benefice_net.toLocaleString()}`}
-          valueColor="text-blue-600"
-        />
-        <DashboardKpi
-          title="🚨 Alerte Rupture"
-          value={data.outOfStockCount}
-          valueColor="text-red-600"
-        />
+        <DashboardKpi title="💰 Chiffre d'Affaires" value={`$${today.chiffre_affaires.toLocaleString()}`} valueColor="text-green-600" />
+        <DashboardKpi title="📈 Bénéfice Net" value={`$${today.benefice_net.toLocaleString()}`} valueColor="text-blue-600" />
+        <DashboardKpi title="🚨 Alerte Rupture" value={data.outOfStockCount} valueColor="text-red-600" />
       </div>
 
+      {financialStats && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <DashboardKpi title="💵 Total perçu en USD" value={`$${financialStats.total_usd.toLocaleString()}`} valueColor="text-blue-600" />
+          <DashboardKpi title="💵 Total perçu en CDF" value={`${financialStats.total_cdf.toLocaleString()} FC`} valueColor="text-green-600" />
+          <DashboardKpi title={`📊 CA Global (${financialStats.default_currency})`} value={financialStats.default_currency === 'USD' ? `$${financialStats.total_global.toLocaleString()}` : `${financialStats.total_global.toLocaleString()} FC`} valueColor="text-purple-600" />
+        </div>
+      )}
+
       <SalesChart topProducts={data.topProducts} />
+
+      {/* Ajout du rapport de clôture */}
+      <ClosingReport />
     </div>
   )
 }
