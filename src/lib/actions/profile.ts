@@ -18,24 +18,37 @@ export async function updateProfileInfo(formData: FormData) {
       return { success: false, message: "Vous devez être connecté." };
     }
 
-    const role = user.user_metadata?.role;
-    const updateData: Record<string, string> = { full_name: fullName };
-
-    if (role === 'owner' && boutiqueName && boutiqueName.trim() !== '') {
-      updateData.boutique_name = boutiqueName;
-    }
-
-    const { error } = await supabase
+    // 1. Mise à jour des informations de l'utilisateur dans la table 'profiles'
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .update(updateData)
-      .eq('id', user.id);
+      .update({ full_name: fullName })
+      .eq('id', user.id)
+      .select('boutique_id, role')
+      .single();
 
-    if (error) throw error;
+    if (profileError) throw profileError;
+
+    // 2. Si l'utilisateur est un propriétaire et qu'un nom de boutique est fourni
+    const role = user.user_metadata?.role || profile?.role;
+    if (role === 'owner' && boutiqueName && boutiqueName.trim() !== '') {
+      
+      if (!profile?.boutique_id) {
+        return { success: false, message: "Aucune boutique associée à ce compte propriétaire." };
+      }
+
+      // Mise à jour du nom de la boutique dans la table 'boutiques' (colonne 'name')
+      const { error: boutiqueError } = await supabase
+        .from('boutiques')
+        .update({ name: boutiqueName }) // Ajuste 'name' si ta colonne s'appelle différemment
+        .eq('id', profile.boutique_id);
+
+      if (boutiqueError) throw boutiqueError;
+    }
 
     return { success: true, message: "Informations mises à jour avec succès." };
   } catch (error) {
     console.error("Erreur updateProfileInfo:", error);
-    return { success: false, message: "Erreur lors de la mise à jour du profil." };
+    return { success: false, message: "Erreur lors de la mise à jour du profil ou de la boutique." };
   }
 }
 
