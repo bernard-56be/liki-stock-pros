@@ -5,54 +5,36 @@ import { createNotification } from "@/lib/actions/services/notificationService";
 export async function processSale(
   productId: string,
   quantity: number,
-  unitPrice: number
+  unitPrice: any,
+  saleCurrency: "USD" | "CDF" = "CDF"
 ) {
-  // Empêche les requêtes malformées de passer côté serveur
   if (!productId || typeof productId !== "string") {
-    return {
-      success: false,
-      message: "Produit invalide. Veuillez sélectionner un produit.",
-    };
+    return { success: false, message: "Produit invalide." };
   }
 
-  // Sécurise la quantité pour éviter les valeurs négatives ou décimales non prévues
-  if (!quantity || quantity <= 0 || !Number.isInteger(quantity)) {
-    return {
-      success: false,
-      message: "Quantité invalide. Veuillez entrer un nombre entier positif.",
-    };
+  const cleanQuantity = Number(quantity);
+  if (!cleanQuantity || cleanQuantity <= 0 || !Number.isInteger(cleanQuantity)) {
+    return { success: false, message: "Quantité invalide." };
   }
 
-  // Garantit que la transaction a une valeur financière réelle
-  if (!unitPrice || unitPrice <= 0) {
-    return {
-      success: false,
-      message: "Prix invalide. Veuillez entrer un prix positif.",
-    };
+  let parsedPrice = typeof unitPrice === "string" 
+    ? Number(unitPrice.replace(",", ".")) 
+    : Number(unitPrice);
+
+  if (isNaN(parsedPrice) || parsedPrice <= 0) {
+    return { success: false, message: "Prix invalide." };
   }
 
-  // Limite de sécurité pour éviter les abus ou erreurs de saisie massives
-  if (quantity > 1000) {
-    return {
-      success: false,
-      message: "Quantité trop élevée. Maximum 1000 unités par vente.",
-    };
+  if (cleanQuantity > 1000) {
+    return { success: false, message: "Quantité trop élevée (max 1000)." };
   }
 
   try {
     const supabase = await createClient();
 
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-
-    // Rejette l'opération si la session est expirée ou invalide
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
-      return {
-        success: false,
-        message: "Vous devez être connecté pour effectuer une vente.",
-      };
+      return { success: false, message: "Vous devez être connecté." };
     }
 
     const { data: profile, error: profileError } = await supabase
@@ -61,12 +43,8 @@ export async function processSale(
       .eq("id", user.id)
       .single();
 
-    // Lie l'employé à son point de vente physique
     if (profileError || !profile?.boutique_id) {
-      return {
-        success: false,
-        message: "Profil sans boutique associée.",
-      };
+      return { success: false, message: "Profil sans boutique associée." };
     }
 
     const { data: boutique, error: boutiqueError } = await supabase
@@ -75,44 +53,42 @@ export async function processSale(
       .eq("id", profile.boutique_id)
       .single();
 
-    // Bloque la vente si le taux récupéré en BDD a expiré ou est invalide
     if (boutiqueError || !boutique?.exchange_rate || boutique.exchange_rate <= 0) {
-      return {
-        success: false,
-        message: "Taux de change invalide ou non défini. Contactez le propriétaire.",
-      };
+      return { success: false, message: "Taux de change invalide." };
     }
 
     const exchangeRate = boutique.exchange_rate;
+    let finalUnitPriceForRpc = parsedPrice;
+    
+    if (saleCurrency === "CDF") {
+      finalUnitPriceForRpc = parsedPrice / exchangeRate;
+    }
 
-    // Historise le taux exact appliqué à cette transaction pour la clôture de caisse
+    // Appel RPC
     const { data, error } = await supabase.rpc("process_sale", {
       p_product_id: productId,
-      p_quantity: quantity,
-      p_unit_price: unitPrice,
-      p_exchange_rate: exchangeRate,
+      p_quantity: Math.floor(cleanQuantity),
+      p_unit_price: Number(finalUnitPriceForRpc.toFixed(4)),
+      p_exchange_rate: Number(exchangeRate),
     });
 
     if (error) {
-      console.error("Erreur process_sale :", error);
-      return {
-        success: false,
-        message: "Erreur serveur lors de la vente. Veuillez réessayer.",
-      };
+      console.error("Erreur RPC :", error);
+      return { success: false, message: `Erreur base de données : ${error.message}` };
     }
 
     if (data.success) {
       const newStock = data.new_stock;
 
+      // Correction ici : on sélectionne "stock_alerte" au lieu de "min_stock"
       const { data: product, error: productError } = await supabase
         .from("products")
-        .select("name, min_stock, boutique_id")
+        .select("name, stock_alerte, boutique_id")
         .eq("id", productId)
         .single();
 
-      if (!productError && product) {
-        // Alerte le propriétaire avant la rupture totale en se basant sur le seuil défini
-        const seuilCritique = product.min_stock;
+      if (!productError && product && newStock !== undefined && newStock !== null) {
+        const seuilCritique = product.stock_alerte; // Alignement schéma
         
         if (newStock <= seuilCritique) {
           const { data: boutiqueOwner, error: ownerError } = await supabase
@@ -125,7 +101,7 @@ export async function processSale(
             await createNotification(
               boutiqueOwner.owner_id,
               "Stock critique",
-              `Le produit "${product.name}" est presque en rupture. Stock restant : ${newStock} unité(s).`,
+              `Le produit "${product.name}" est presque en rupture. Restant : ${newStock} unité(s).`,
               "danger"
             );
           }
@@ -141,11 +117,7 @@ export async function processSale(
       new_stock: data.new_stock || null,
     };
   } catch (err) {
-    console.error("Exception process_sale :", err);
-    return {
-      success: false,
-      message:
-        "Une erreur inattendue est survenue. Veuillez contacter le propriétaire.",
-    };
+    console.error("Exception :", err);
+    return { success: false, message: "Une erreur inattendue est survenue." };
   }
 }
