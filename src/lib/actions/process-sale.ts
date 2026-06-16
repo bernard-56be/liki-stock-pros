@@ -1,8 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createNotification } from "@/lib/actions/notifications";
-
+import { createNotification } from "@/lib/actions/services/notificationService";
 export async function processSale(
   productId: string,
   quantity: number,
