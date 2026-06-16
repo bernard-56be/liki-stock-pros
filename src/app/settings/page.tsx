@@ -11,20 +11,31 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
+  // Récupérer le profil
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
     .eq('id', user.id)
     .single();
 
-  const role = user.user_metadata?.role || 'employee';
+  const role = user.user_metadata?.role || profile?.role || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
-  const boutiqueName = profile?.boutique_name || '';
   const avatar = profile?.avatar_url || null;
+  
+  let boutiqueName = '';
+
+  // Si c'est un propriétaire, on récupère le vrai nom de sa boutique depuis la table 'boutiques'
+  if (role === 'owner' && profile?.boutique_id) {
+    const { data: boutique } = await supabase
+      .from('boutiques')
+      .select('name')
+      .eq('id', profile.boutique_id)
+      .single();
+      
+    boutiqueName = boutique?.name || '';
+  }
 
   return (
-    // C'est ici que la magie de Next.js opère : on enveloppe la page Paramètres 
-    // dans le Layout global. Ainsi, l'UI est 100% identique partout !
     <DashboardClientLayout
       role={role}
       userName={userName}

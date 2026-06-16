@@ -40,3 +40,24 @@ export async function markAllNotificationsAsRead(): Promise<void> {
 
   if (error) throw new Error(error.message)
 }
+
+export async function createNotification(
+  userId: string,
+  title: string,
+  message: string,
+  type: 'info' | 'warning' | 'success' | 'danger'
+): Promise<void> {
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('notifications')
+    .insert({
+      user_id: userId,
+      title,
+      message,
+      type,
+      is_read: false,
+    })
+
+  if (error) throw new Error(error.message)
+}

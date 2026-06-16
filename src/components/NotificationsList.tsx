@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { getUserNotifications, markAllNotificationsAsRead, type Notification } from '../lib/actions/services/notificationService'
+import { requestNotificationPermission, sendBrowserNotification } from '../lib/actions/notifications'
 
 export default function NotificationsList() {
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -21,7 +22,18 @@ export default function NotificationsList() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    requestNotificationPermission()
+    load()
+  }, [])
+
+  useEffect(() => {
+    notifications
+      .filter((n) => !n.is_read)
+      .forEach((n) => {
+        sendBrowserNotification(n.title, n.message)
+      })
+  }, [notifications])
 
   const handleMarkAllRead = async () => {
     try {

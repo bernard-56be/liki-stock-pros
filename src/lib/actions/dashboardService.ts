@@ -47,7 +47,6 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
   if (topError) throw new Error(topError.message)
 
-  // Ruptures : gestion propre de l'erreur RLS
   let outOfStockCount = 0
   const { count, error: stockError } = await supabase
     .from('products')
@@ -56,8 +55,6 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
   if (!stockError) {
     outOfStockCount = count || 0
-  } else {
-    console.warn('Compteur ruptures indisponible (RLS) :', stockError)
   }
 
   return {

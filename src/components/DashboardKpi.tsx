@@ -1,8 +1,7 @@
-// components/DashboardKpi.tsx
 interface DashboardKpiProps {
   title: string
   value: string | number
-  valueColor: string // ex: "text-green-600"
+  valueColor: string
 }
 
 export default function DashboardKpi({ title, value, valueColor }: DashboardKpiProps) {
@@ -12,7 +11,7 @@ export default function DashboardKpi({ title, value, valueColor }: DashboardKpiP
       <p className={`text-2xl font-bold ${valueColor}`}>
         {value}
       </p>
-      <p className="text-xs text-gray-600">Aujourdhui</p>
+      <p className="text-xs text-gray-600">Aujourd'hui</p>
     </div>
   )
 }
