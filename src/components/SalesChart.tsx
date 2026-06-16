@@ -1,5 +1,5 @@
 // components/SalesChart.tsx
-import type { TopProduitVendu } from '@/types/types/database.types'
+import type { TopProduitVendu } from '../types/database.types';
 
 interface SalesChartProps {
   topProducts: TopProduitVendu[]
