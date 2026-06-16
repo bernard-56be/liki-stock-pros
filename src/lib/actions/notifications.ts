@@ -1,28 +1,23 @@
-'use server';
-
-import { createClient } from '@/lib/supabase/server';
-
-export async function createNotification(
-  userId: string,
-  title: string,
-  message: string,
-  type: 'info' | 'warning' | 'success' | 'danger'
-): Promise<{ success: boolean; error?: string }> {
-  const supabase = await createClient();
-
-  // Insertion dans la table notifications
-  const { error } = await supabase.from('notifications').insert({
-    user_id: userId,
-    title,
-    message,
-    type,
-    created_at: new Date().toISOString(),
-  });
-
-  if (error) {
-    console.error('Erreur création notification:', error);
-    return { success: false, error: error.message };
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    console.warn('Notifications non supportées par ce navigateur.')
+    return false
   }
 
-  return { success: true };
+  const permission = await Notification.requestPermission()
+  return permission === 'granted'
+}
+
+export function sendBrowserNotification(title: string, body: string): void {
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return
+
+  const options: NotificationOptions & { vibrate?: number[] } = {
+    body,
+    icon: '/logo.png',
+    badge: '/badge.png',
+    tag: 'liki-stock',
+    vibrate: [200, 100, 200],
+  }
+
+  new Notification(title, options)
 }
