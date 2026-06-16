@@ -1,10 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { fetchDashboardData, getFinancialStats, type DashboardData, type FinancialStats } from '@/lib//actions/dashboardService'
+import { fetchDashboardData, getFinancialStats, type DashboardData, type FinancialStats } from '@/lib/actions/dashboardService'
 import DashboardKpi from '@/components/DashboardKpi'
 import SalesChart from '@/components/SalesChart'
-import ClosingReport from '@/components/shared/closingReport'
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -73,9 +72,6 @@ export default function OwnerDashboardPage() {
       )}
 
       <SalesChart topProducts={data.topProducts} />
-
-      {/* Ajout du rapport de clôture */}
-      <ClosingReport />
     </div>
   )
 }
