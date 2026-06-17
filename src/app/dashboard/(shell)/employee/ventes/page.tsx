@@ -413,7 +413,7 @@ export default function EmployeeSalesPage() {
       let allSuccess = true;
       let errorMessage = "";
 
-      // Traitement séquentiel pour éviter les conflits de requêtes simultanées sur la base de données
+      // ✅ Traitement séquentiel robuste pour garantir que chaque article est traité l'un après l'autre
       for (const item of cart) {
         const result = await processSale(
           item.id, 
@@ -432,13 +432,12 @@ export default function EmployeeSalesPage() {
       if (allSuccess) {
         setSuccessMessage("La vente de tout le panier a été enregistrée avec succès !");
         setCart([]); // On vide le panier uniquement si TOUT est passé
+        
         // Rafraîchir l'inventaire visuel
         const updatedProducts = await getProducts();
-        // getProducts() retourne un objet { success, data, error }
         if (updatedProducts && updatedProducts.success && updatedProducts.data) {
           setProducts(updatedProducts.data);
         } else {
-          // En cas d'erreur, afficher le message retourné
           setError(updatedProducts?.error || "Impossible de rafraîchir l'inventaire.");
         }
       } else {
