@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin' // Importation du client admin sécurisé
 
 export interface Notification {
   id: string
@@ -41,23 +42,30 @@ export async function markAllNotificationsAsRead(): Promise<void> {
   if (error) throw new Error(error.message)
 }
 
+// Fonction mise à jour avec le client Admin (Bypass la RLS)
 export async function createNotification(
   userId: string,
   title: string,
   message: string,
   type: 'info' | 'warning' | 'success' | 'danger'
 ): Promise<void> {
-  const supabase = await createClient()
+  // On utilise le client Admin pour contourner la politique RLS lors de l'insertion automatique
+  const supabaseAdmin = createAdminClient()
 
-  const { error } = await supabase
+  const { error } = await supabaseAdmin
     .from('notifications')
-    .insert({
-      user_id: userId,
-      title,
-      message,
-      type,
-      is_read: false,
-    })
+    .insert([
+      {
+        user_id: userId,
+        title,
+        message,
+        type,
+        is_read: false
+      }
+    ])
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    console.error("Erreur d'insertion de la notification via AdminClient:", error.message)
+    throw new Error(error.message)
+  }
 }

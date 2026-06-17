@@ -10,10 +10,9 @@ import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
 
 const ITEMS_PER_PAGE = 6;
-const EXCHANGE_RATE = 2850.02; // ✅ Mis à jour depuis le Code 2
+const EXCHANGE_RATE = 2850.02; 
 
 interface ExtendedProduct extends Product {
-  // Pas besoin de redéfinir currency si Product la contient déjà proprement !
   sale_price?: number;
   min_price?: number;
 }
@@ -403,49 +402,54 @@ export default function EmployeeSalesPage() {
   const isCartEmpty = cart.length === 0;
 
   // Finalisation de la vente
-  const handleCheckout = useCallback(async () => {
-    if (hasInvalidPrice) {
-      setError('Certains produits ont un prix inférieur au prix minimum autorisé.');
-      return;
-    }
-    if (hasStockExceed) {
-      setError('La quantité demandée dépasse le stock disponible pour certains produits.');
-      return;
-    }
-    if (isCartEmpty) {
-      setError('Le panier est vide.');
-      return;
-    }
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
 
     setIsSubmitting(true);
     setError(null);
     setSuccessMessage(null);
 
-    let hasError = false;
-    for (const item of cart) {
-      // ✅ Si ton action serveur processSale attend des FC, on convertit au moment de la soumission SQL
-      const finalPriceForBackend = item.currency === "USD" ? item.negotiatedPrice * EXCHANGE_RATE : item.negotiatedPrice;
-      
-      const result = await processSale(item.id, item.quantity, finalPriceForBackend);
-      if (!result.success) {
-        setError(`Erreur pour ${item.name} : ${result.message}`);
-        hasError = true;
-        break;
-      }
-    }
+    try {
+      let allSuccess = true;
+      let errorMessage = "";
 
-    if (!hasError) {
-      setSuccessMessage('Vente finalisée avec succès !');
-      setCart([]);
-      const refreshed = await getProducts();
-      if (refreshed.success && refreshed.data) {
-        setProducts(refreshed.data);
+      // ✅ Traitement séquentiel robuste pour garantir que chaque article est traité l'un après l'autre
+      for (const item of cart) {
+        const result = await processSale(
+          item.id, 
+          item.quantity, 
+          item.negotiatedPrice,
+          item.currency as "USD" | "CDF" // On passe dynamiquement la devise de l'article
+        );
+
+        if (!result.success) {
+          allSuccess = false;
+          errorMessage = `${item.name}: ${result.message}`;
+          break; // On stoppe dès qu'un produit pose problème pour protéger l'inventaire
+        }
       }
-      setTimeout(() => setSuccessMessage(null), 3000);
-      setIsSheetOpen(false);
+
+      if (allSuccess) {
+        setSuccessMessage("La vente de tout le panier a été enregistrée avec succès !");
+        setCart([]); // On vide le panier uniquement si TOUT est passé
+        
+        // Rafraîchir l'inventaire visuel
+        const updatedProducts = await getProducts();
+        if (updatedProducts && updatedProducts.success && updatedProducts.data) {
+          setProducts(updatedProducts.data);
+        } else {
+          setError(updatedProducts?.error || "Impossible de rafraîchir l'inventaire.");
+        }
+      } else {
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la finalisation :", err);
+      setError("Une erreur est survenue lors du traitement du panier.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-  }, [cart, hasInvalidPrice, hasStockExceed, isCartEmpty]);
+  };
 
   const openCartSheet = () => setIsSheetOpen(true);
   const closeCartSheet = () => setIsSheetOpen(false);
