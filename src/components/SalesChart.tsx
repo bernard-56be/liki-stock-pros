@@ -1,5 +1,11 @@
+<<<<<<<<< Temporary merge branch 1
 // components/SalesChart.tsx
-import type { TopProduitVendu } from '@/types/types/database.types'
+import type { TopProduitVendu } from '../types/database.types';
+=========
+"use client";
+
+import type { TopProduitVendu } from "@/types/database.types";
+>>>>>>>>> Temporary merge branch 2
 
 interface SalesChartProps {
   topProducts: TopProduitVendu[];
@@ -48,7 +54,7 @@ export default function SalesChart({ topProducts }: SalesChartProps) {
                 {product.total_vendus}
               </span>
               <div
-                className={`w-full max-w-[40px] rounded-t-lg bg-gradient-to-t ${colors[index] || colors[4]} transition-all duration-300 hover:brightness-110`}
+                className={`w-full max-w-10[40px] rounded-t-lg bg-linear-to-t ${colors[index] || colors[4]} transition-all duration-300 hover:brightness-110`}
                 style={{ height: `${heightPercent}%` }}
                 title={`${product.product_name} : ${product.total_vendus} ventes`}
               />
