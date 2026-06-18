@@ -1,11 +1,6 @@
-<<<<<<<<< Temporary merge branch 1
-// components/SalesChart.tsx
-import type { TopProduitVendu } from '../types/database.types';
-=========
 "use client";
 
 import type { TopProduitVendu } from "@/types/database.types";
->>>>>>>>> Temporary merge branch 2
 
 interface SalesChartProps {
   topProducts: TopProduitVendu[];

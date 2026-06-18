@@ -11,7 +11,7 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  // Récupérer le profil
+  // Récupérer le profil (inclut automatiquement exchange_rate et default_currency grâce au '*')
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -21,6 +21,10 @@ export default async function SettingsPage() {
   const role = user.user_metadata?.role || profile?.role || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
   const avatar = profile?.avatar_url || null;
+  
+  // Valeurs par défaut sécurisées pour le taux et la devise (gérées par Enock)
+  const exchangeRate = profile?.exchange_rate ?? 2850.00;
+  const defaultCurrency = profile?.default_currency ?? 'USD';
   
   let boutiqueName = '';
 
@@ -46,6 +50,8 @@ export default async function SettingsPage() {
           role={role} 
           initialName={userName} 
           initialBoutique={boutiqueName} 
+          initialRate={exchangeRate} 
+          initialCurrency={defaultCurrency} 
         />
       </div>
     </DashboardClientLayout>

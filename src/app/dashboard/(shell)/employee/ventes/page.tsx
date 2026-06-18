@@ -93,6 +93,7 @@ const Pagination = memo(function Pagination({
     </div>
   );
 });
+ 
 
 // ---------- Ligne du tableau desktop ----------
 const ProductRow = memo(function ProductRow({
