@@ -4,10 +4,12 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { randomUUID } from 'crypto';
 
+// 1. AJOUT DE LA CURRENCY DANS LE TYPE PRINCIPAL
 export type Product = {
   id: string;
   name: string;
   quantity: number;
+  currency: 'USD' | 'CDF'; // <-- Ajouté ici
   purchasePrice: number;
   salePrice: number;
   minPrice: number;
@@ -18,8 +20,6 @@ export type Product = {
 
 /**
  * Récupère le boutique_id de l'utilisateur connecté.
- * Stratégie : d'abord via profiles.boutique_id, sinon via boutiques.owner_id.
- * Retourne l'ID ou lève une erreur explicite (capturable).
  */
 async function getBoutiqueId(): Promise<string> {
   const supabase = await createClient();
@@ -29,7 +29,6 @@ async function getBoutiqueId(): Promise<string> {
     throw new Error('Non authentifié');
   }
 
-  // 1. Essayer de lire profiles.boutique_id
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('boutique_id')
@@ -40,7 +39,6 @@ async function getBoutiqueId(): Promise<string> {
     return profile.boutique_id;
   }
 
-  // 2. Fallback : chercher la boutique dont l'utilisateur est propriétaire
   const { data: boutique, error: boutiqueError } = await supabase
     .from('boutiques')
     .select('id')
@@ -50,7 +48,7 @@ async function getBoutiqueId(): Promise<string> {
   if (boutiqueError || !boutique) {
     console.error('getBoutiqueId - profileError:', profileError);
     console.error('getBoutiqueId - boutiqueError:', boutiqueError);
-    throw new Error('Aucune boutique associée à ce compte. Vérifiez votre profil ou la table boutiques.');
+    throw new Error('Aucune boutique associée à ce compte.');
   }
 
   return boutique.id;
@@ -69,10 +67,12 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
 
     if (error) throw error;
 
+    // 2. EXTRACTION DE LA DEVISE DEPUIS LA TABLE SUPABASE
     const products: Product[] = data.map((p) => ({
       id: p.id,
       name: p.name,
       quantity: p.quantity,
+      currency: p.currency || 'USD', // <-- Mappe la colonne de ta base de données (fallback USD)
       purchasePrice: p.purchase_price,
       salePrice: p.sale_price,
       minPrice: p.min_price,
@@ -120,25 +120,26 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
-    // Récupération sécurisée des champs
     const name = formData.get('name') as string;
     if (!name?.trim()) {
       return { success: false, error: 'Le nom du produit est obligatoire.' };
     }
 
     const quantity = parseInt(formData.get('quantity') as string) || 0;
+    const currency = (formData.get('currency') as string) || 'USD'; // <-- Récupération de la devise
     const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
-    const stockAlerte = parseInt(formData.get('stockAlerte') as string) || 5;
+    
+    // Correction ici : prend en charge soit 'min_stock' (formulaire) soit 'stockAlerte'
+    const stockAlerte = parseInt(formData.get('min_stock') as string) || 
+                        parseInt(formData.get('stockAlerte') as string) || 5;
 
-    // Gestion de l'image avec vérification de la taille (5 Mo max)
     const imageFile = formData.get('image') as File | null;
     const currentImageUrl = formData.get('currentImageUrl') as string | null;
 
     let imageUrl = currentImageUrl;
 
-    // Vérification de la taille de l'image avant upload
     if (imageFile && imageFile.size > 0) {
       if (imageFile.size > 5 * 1024 * 1024) {
         throw new Error("L'image est trop volumineuse et ne doit pas dépasser 5 Mo");
@@ -146,10 +147,12 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
+    // 3. INSERTION DE LA DEVISE DANS LA TABLE SUPABASE
     const { error } = await supabase.from('products').insert({
       boutique_id: boutiqueId,
       name: name.trim(),
       quantity,
+      currency, // <-- Sauvegardé en base de données !
       purchase_price: purchasePrice,
       sale_price: salePrice,
       min_price: minPrice,
@@ -178,10 +181,14 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 
     const name = formData.get('name') as string;
     const quantity = parseInt(formData.get('quantity') as string) || 0;
+    const currency = (formData.get('currency') as string) || 'USD'; // <-- Récupération de la devise
     const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
-    const stockAlerte = parseInt(formData.get('stockAlerte') as string) || 5;
+    
+    const stockAlerte = parseInt(formData.get('min_stock') as string) || 
+                        parseInt(formData.get('stockAlerte') as string) || 5;
+                        
     const currentImageUrl = formData.get('currentImageUrl') as string | null;
     const imageFile = formData.get('image') as File | null;
 
@@ -194,11 +201,13 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
+    // 4. MISE À JOUR DE LA DEVISE DANS LA TABLE SUPABASE
     const { error } = await supabase
       .from('products')
       .update({
         name: name.trim(),
         quantity,
+        currency, // <-- Sauvegardé en base de données !
         purchase_price: purchasePrice,
         sale_price: salePrice,
         min_price: minPrice,
@@ -221,6 +230,7 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 
 export async function deleteProduct(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
+    
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 

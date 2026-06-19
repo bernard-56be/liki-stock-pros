@@ -8,13 +8,17 @@ import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 interface HeaderProps {
   userName: string;
   userAvatar: string | null;
+  currentRate?: number; // Nouvelle prop optionnelle pour le taux dynamique (ex: 2850)
 }
 
-export function Header({ userName, userAvatar }: HeaderProps) {
+export function Header({ userName, userAvatar, currentRate = 2850 }: HeaderProps) {
   const { toggleMenu } = useMenu();
 
+  // Formatage local propre du taux (ex: 2 850)
+  const formattedRate = new Intl.NumberFormat('fr-FR').format(currentRate);
+
   return (
-    <header className="sticky top-0 z-20 border-b  bg-white/80 backdrop-blur-md shadow-sm">
+    <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur-md shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Gauche : bouton menu (mobile) + logo */}
         <div className="flex items-center gap-2">
@@ -28,8 +32,23 @@ export function Header({ userName, userAvatar }: HeaderProps) {
           <span className="text-xl font-bold text-indigo-600">Liki-Stock Pro</span>
         </div>
 
-        {/* Actions utilisateur (inchangé) */}
+        {/* Zone centrale/droite : Actions utilisateur + Pastille Taux */}
         <div className="flex items-center gap-3">
+          
+          {/* Pastille visuelle discrète et fixe du Taux (Demande du Livrable 5) */}
+          <div className="mr-2 inline-flex items-center gap-1.5 rounded-full border border-purple-100 bg-purple-50/60 px-3 py-1 text-xs font-semibold text-purple-700 backdrop-blur-sm shadow-sm">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-600"></span>
+            </span>
+            <div className="flex items-center gap-0.5">
+              <span className="text-gray-500 font-normal">Taux :</span>
+              <span className="font-bold text-purple-950">1 $</span>
+              <span className="text-purple-400 font-normal">=</span>
+              <span className="font-bold text-purple-950">{formattedRate} FC</span>
+            </div>
+          </div>
+
           <Link
             href="/notifications"
             className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"

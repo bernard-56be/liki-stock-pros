@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
-import { User, Lock, Store, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { User, Lock, Store, AlertTriangle, CheckCircle2, Coins } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { updateProfileInfo, updatePassword } from '@/lib/actions/profile';
@@ -13,9 +13,17 @@ interface SettingsClientProps {
   role: Role;
   initialName: string;
   initialBoutique?: string;
+  initialRate: number; // Nouvelle prop issue de la table profiles
+  initialCurrency: 'USD' | 'CDF'; // Nouvelle prop issue de la table profiles
 }
 
-export default function SettingsClient({ role, initialName, initialBoutique }: SettingsClientProps) {
+export default function SettingsClient({ 
+  role, 
+  initialName, 
+  initialBoutique,
+  initialRate,
+  initialCurrency
+}: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>('info');
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -124,19 +132,59 @@ export default function SettingsClient({ role, initialName, initialBoutique }: S
 
             {/* Onglet : Configuration Boutique (Owner uniquement) */}
             {activeTab === 'boutique' && role === 'owner' && (
-              <form onSubmit={handleSubmit(updateProfileInfo)} className="space-y-5">
+              <form onSubmit={handleSubmit(updateProfileInfo)} className="space-y-6">
                 <input type="hidden" name="fullName" value={initialName} />
-                <div className="space-y-2">
-                  <label htmlFor="boutiqueName" className="text-sm font-medium text-gray-700">Nom de la boutique</label>
-                  <input
-                    type="text"
-                    id="boutiqueName"
-                    name="boutiqueName"
-                    defaultValue={initialBoutique}
-                    required
-                    className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
+                
+                {/* Section : Informations Générales */}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor="boutiqueName" className="text-sm font-medium text-gray-700">Nom de la boutique</label>
+                    <input
+                      type="text"
+                      id="boutiqueName"
+                      name="boutiqueName"
+                      defaultValue={initialBoutique}
+                      required
+                      className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                    />
+                  </div>
                 </div>
+
+                <hr className="border-gray-100" />
+
+                {/* Section : Devises & Taux de Change */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <Coins className="h-4 w-4 text-purple-600" />
+                    <span>Gestion des Taux</span>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+
+                    {/* Taux de Change */}
+                    <div className="space-y-2">
+                      <label htmlFor="exchangeRate" className="text-sm font-medium text-gray-700">
+                        Taux de la boutique (1 USD = x CDF)
+                      </label>
+                      <div className="relative rounded-md shadow-sm">
+                        <input
+                          type="number"
+                          step="0.01"
+                          id="exchangeRate"
+                          name="exchangeRate"
+                          defaultValue={initialRate}
+                          placeholder="ex: 2850.00"
+                          required
+                          className="w-full rounded-md border border-gray-200 bg-white pl-3 pr-12 py-2 text-sm text-gray-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                        />
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                          <span className="text-gray-400 text-xs font-semibold">FC</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="pt-2">
                   <Button type="submit" disabled={isPending} className="bg-indigo-600 text-white hover:bg-indigo-700">
                     {isPending ? 'Enregistrement...' : 'Mettre à jour la boutique'}

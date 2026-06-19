@@ -61,6 +61,7 @@ export async function processSale(
       return { success: false, message: "Erreur serveur lors de la vente." };
     }
 
+    // 5. Gestion des alertes de stock critique (Notification automatique au propriétaire)
     if (data.success) {
       const newStock = data.new_stock;
 

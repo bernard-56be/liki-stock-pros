@@ -10,7 +10,12 @@ import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
 
 const ITEMS_PER_PAGE = 6;
-const EXCHANGE_RATE = 2200; // 1 USD = 2200 FC
+const EXCHANGE_RATE = 2850.02; 
+
+interface ExtendedProduct extends Product {
+  sale_price?: number;
+  min_price?: number;
+}
 
 type CartItem = {
   id: string;
@@ -20,6 +25,15 @@ type CartItem = {
   minPrice: number;
   maxStock: number;
   imageUrl: string | null;
+  currency: string; // ✅ Ajouté pour conserver la devise dans le panier
+};
+
+// ✅ Fonction globale de formatage dynamique (FC ou USD) selon la devise fixée
+const formatPrice = (value: number, currency?: string) => {
+  if (currency === 'USD') {
+    return `${value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+  }
+  return `${Math.round(value).toLocaleString('fr-FR')} FC`;
 };
 
 // ---------- SearchBar ----------
@@ -78,16 +92,18 @@ const Pagination = memo(function Pagination({
     </div>
   );
 });
+ 
 
 // ---------- Ligne du tableau desktop ----------
 const ProductRow = memo(function ProductRow({
   product,
   onAddToCart,
 }: {
-  product: Product;
-  onAddToCart: (product: Product) => void;
+  product: ExtendedProduct; // ✅ Utilisation du type étendu
+  onAddToCart: (product: ExtendedProduct) => void;
 }) {
-  const formatFc = (value: number) => `${value.toLocaleString('fr-FR')} FC`;
+  // ✅ On garde le prix d'origine fixé sans forcer la conversion en FC
+  const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
 
   return (
     <tr className="border-t border-gray-100 hover:bg-gray-50">
@@ -119,7 +135,9 @@ const ProductRow = memo(function ProductRow({
         </div>
       </td>
       <td className="px-4 py-3 text-center text-gray-700">{product.quantity}</td>
-      <td className="px-4 py-3 text-right text-gray-700">{formatFc(product.salePrice)}</td>
+      <td className="px-4 py-3 text-right text-gray-700 font-semibold">
+        {formatPrice(rawSalePrice, product.currency)} {/* ✅ Affichage dynamique selon sa propre devise */}
+      </td>
       <td className="px-4 py-3 text-right">
         <Button
           size="sm"
@@ -141,10 +159,10 @@ const MobileProductCard = memo(function MobileProductCard({
   product,
   onAddToCart,
 }: {
-  product: Product;
-  onAddToCart: (product: Product) => void;
+  product: ExtendedProduct; // ✅ Utilisation du type étendu
+  onAddToCart: (product: ExtendedProduct) => void;
 }) {
-  const formatFc = (value: number) => `${value.toLocaleString('fr-FR')} FC`;
+  const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
 
   return (
     <Card className="border border-gray-200 shadow-sm">
@@ -179,7 +197,7 @@ const MobileProductCard = memo(function MobileProductCard({
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
           <span className="font-bold text-gray-900">Prix vente :</span>
           <span className="text-right font-medium text-gray-700">
-            {formatFc(product.salePrice)}
+            {formatPrice(rawSalePrice, product.currency)} {/* ✅ Affichage dynamique selon sa propre devise */}
           </span>
         </div>
         <div className="flex justify-end pt-2">
@@ -235,12 +253,11 @@ const CartItemRow = memo(function CartItemRow({
           <div className="flex-1">
             <h4 className="font-medium text-gray-900">{item.name}</h4>
             <p className="text-sm text-gray-600">
-              {item.negotiatedPrice.toLocaleString()} FC
+              {formatPrice(item.negotiatedPrice, item.currency)} {/* ✅ Respecte la devise d'origine au panier */}
             </p>
           </div>
         </div>
 
-        {/* Conteneur en forme de pilule pour les actions */}
         <div className="mt-2 flex items-center justify-between rounded-full border border-amber-300 bg-amber-50 px-3 py-1.5">
           <button
             onClick={() => onRemove(item.id)}
@@ -266,16 +283,16 @@ const CartItemRow = memo(function CartItemRow({
               <Plus className="h-3 w-3 text-gray-400" />
             </button>
           </div>
-          <div className="w-6" /> {/* espacement pour équilibrer */}
+          <div className="w-6" />
         </div>
 
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Total ligne :</span>
-          <span className="font-semibold text-gray-900">{total.toLocaleString()} FC</span>
+          <span className="font-semibold text-gray-900">{formatPrice(total, item.currency)}</span> {/* ✅ Total de ligne */}
         </div>
         {isPriceBelowMin && (
           <p className="text-xs text-red-600">
-            Prix inférieur au minimum autorisé ({item.minPrice.toLocaleString()} FC)
+            Prix inférieur au minimum autorisé ({formatPrice(item.minPrice, item.currency)}) {/* ✅ Minimum autorisé */}
           </p>
         )}
       </div>
@@ -285,7 +302,7 @@ const CartItemRow = memo(function CartItemRow({
 
 // ---------- Page principale ----------
 export default function EmployeeSalesPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -330,7 +347,11 @@ export default function EmployeeSalesPage() {
   }, []);
 
   // Gestion du panier
-  const handleAddToCart = useCallback((product: Product) => {
+  const handleAddToCart = useCallback((product: ExtendedProduct) => {
+    const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
+    const rawMinPrice = Number(product.min_price ?? product.minPrice) || 0;
+    const currentCurrency = product.currency || "FC";
+
     setCart((prev) => {
       const existing = prev.find((item) => item.id === product.id);
       if (existing) {
@@ -346,10 +367,11 @@ export default function EmployeeSalesPage() {
           id: product.id,
           name: product.name,
           quantity: 1,
-          negotiatedPrice: product.salePrice,
-          minPrice: product.minPrice,
+          negotiatedPrice: rawSalePrice, // ✅ Reste dans sa devise d'origine
+          minPrice: rawMinPrice,          // ✅ Reste dans sa devise d'origine
           maxStock: product.quantity,
           imageUrl: product.imageUrl,
+          currency: currentCurrency,      // ✅ Sauvegarde de la devise dans l'item
         },
       ];
     });
@@ -367,9 +389,12 @@ export default function EmployeeSalesPage() {
     setCart((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Calculs totaux
+  // Calculs totaux unifiés (Pour le récapitulatif global du panier)
   const subtotalFc = useMemo(() => {
-    return cart.reduce((sum, item) => sum + item.quantity * item.negotiatedPrice, 0);
+    return cart.reduce((sum, item) => {
+      const priceInFc = item.currency === "USD" ? item.negotiatedPrice * EXCHANGE_RATE : item.negotiatedPrice;
+      return sum + item.quantity * priceInFc;
+    }, 0);
   }, [cart]);
 
   const subtotalUsd = useMemo(() => subtotalFc / EXCHANGE_RATE, [subtotalFc]);
@@ -378,47 +403,54 @@ export default function EmployeeSalesPage() {
   const isCartEmpty = cart.length === 0;
 
   // Finalisation de la vente
-  const handleCheckout = useCallback(async () => {
-    if (hasInvalidPrice) {
-      setError('Certains produits ont un prix inférieur au prix minimum autorisé.');
-      return;
-    }
-    if (hasStockExceed) {
-      setError('La quantité demandée dépasse le stock disponible pour certains produits.');
-      return;
-    }
-    if (isCartEmpty) {
-      setError('Le panier est vide.');
-      return;
-    }
+  const handleCheckout = async () => {
+    if (cart.length === 0) return;
 
     setIsSubmitting(true);
     setError(null);
     setSuccessMessage(null);
 
-    let hasError = false;
-    for (const item of cart) {
-      const result = await processSale(item.id, item.quantity, item.negotiatedPrice);
-      if (!result.success) {
-        setError(`Erreur pour ${item.name} : ${result.message}`);
-        hasError = true;
-        break;
-      }
-    }
+    try {
+      let allSuccess = true;
+      let errorMessage = "";
 
-    if (!hasError) {
-      setSuccessMessage('Vente finalisée avec succès !');
-      setCart([]);
-      // Recharger les produits
-      const refreshed = await getProducts();
-      if (refreshed.success && refreshed.data) {
-        setProducts(refreshed.data);
+      // ✅ Traitement séquentiel robuste pour garantir que chaque article est traité l'un après l'autre
+      for (const item of cart) {
+        const result = await processSale(
+          item.id, 
+          item.quantity, 
+          item.negotiatedPrice,
+          item.currency as "USD" | "CDF" // On passe dynamiquement la devise de l'article
+        );
+
+        if (!result.success) {
+          allSuccess = false;
+          errorMessage = `${item.name}: ${result.message}`;
+          break; // On stoppe dès qu'un produit pose problème pour protéger l'inventaire
+        }
       }
-      setTimeout(() => setSuccessMessage(null), 3000);
-      setIsSheetOpen(false);
+
+      if (allSuccess) {
+        setSuccessMessage("La vente de tout le panier a été enregistrée avec succès !");
+        setCart([]); // On vide le panier uniquement si TOUT est passé
+        
+        // Rafraîchir l'inventaire visuel
+        const updatedProducts = await getProducts();
+        if (updatedProducts && updatedProducts.success && updatedProducts.data) {
+          setProducts(updatedProducts.data);
+        } else {
+          setError(updatedProducts?.error || "Impossible de rafraîchir l'inventaire.");
+        }
+      } else {
+        setError(errorMessage);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la finalisation :", err);
+      setError("Une erreur est survenue lors du traitement du panier.");
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
-  }, [cart, hasInvalidPrice, hasStockExceed, isCartEmpty]);
+  };
 
   const openCartSheet = () => setIsSheetOpen(true);
   const closeCartSheet = () => setIsSheetOpen(false);
@@ -537,7 +569,7 @@ export default function EmployeeSalesPage() {
             <div className="border-t border-gray-200 p-4 space-y-3">
               <div className="flex justify-between text-base font-semibold">
                 <span className="text-gray-800">Total (FC) :</span>
-                <span className="text-gray-900">{subtotalFc.toLocaleString()} FC</span>
+                <span className="text-gray-900">{formatPrice(subtotalFc, "FC")}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <span>Total (USD) :</span>
