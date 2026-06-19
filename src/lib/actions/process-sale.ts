@@ -78,12 +78,16 @@ export async function processSale(
           .single();
 
         if (owner?.owner_id) {
-          await createNotification(
-            owner.owner_id,
-            "Stock critique",
-            `Le produit "${product.name}" est presque en rupture. Stock restant : ${newStock} unité(s).`,
-            "danger"
-          );
+          try {
+            await createNotification(
+              owner.owner_id,
+              "Stock critique",
+              `Le produit "${product.name}" est presque en rupture. Stock restant : ${newStock} unité(s).`,
+              "danger"
+            );
+          } catch (notifError) {
+            console.error("Échec notification:", notifError);
+          }
         }
       }
     }

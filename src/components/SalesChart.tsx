@@ -35,7 +35,6 @@ const SalesChart: React.FC<SalesChartProps> = ({ topProducts }) => {
         📊 Top 5 Produits Vendus
       </h3>
 
-      {/* Graphique : hauteur augmentée à 64 (h-64 = 256px) */}
       <div className="flex items-end justify-between gap-5 h-64 px-4">
         {topProducts.map((product, index) => {
           const heightPercent = (product.total_vendus / maxVendus) * 100;
@@ -45,19 +44,16 @@ const SalesChart: React.FC<SalesChartProps> = ({ topProducts }) => {
               key={product.product_id}
               className="flex flex-col items-center flex-1 h-full justify-end"
             >
-              {/* Quantité vendue au-dessus de la barre */}
               <span className="text-sm font-extrabold text-gray-800 mb-2">
                 {product.total_vendus}
               </span>
 
-              {/* Barre */}
               <div
                 className={`w-full max-w-[36px] rounded-t-xl ${colors[index] || colors[4]} shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg`}
                 style={{ height: `${heightPercent}%` }}
                 title={`${product.product_name} : ${product.total_vendus} ventes`}
               />
 
-              {/* Nom complet du produit, sur 2 lignes max */}
               <span className="text-xs font-semibold text-gray-700 mt-3 text-center w-full leading-tight line-clamp-2">
                 {product.product_name}
               </span>
