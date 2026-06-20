@@ -13,11 +13,14 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/dashboard', label: 'Accueil' },
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
   { href: '/dashboard/owner/validation', label: 'Validation' },
+  { href: '/notifications', label: 'Notifications' },
   { href: '/settings', label: 'Paramètres' }, 
+  
 ];
 
 const employeeNav: NavItem[] = [
   { href: '/dashboard/employee/ventes', label: 'Ventes' },
+  { href: '/notifications', label: 'Notifications' },
   { href: '/settings', label: 'Paramètres' },
 ];
 

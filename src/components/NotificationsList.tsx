@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getUserNotifications, markAllNotificationsAsRead, type Notification } from '../lib/actions/services/notificationService'
-import { requestNotificationPermission, sendBrowserNotification } from '../lib/actions/notifications'
+import { getUserNotifications, markAllNotificationsAsRead, type Notification } from '@/lib/actions/services/notificationService'
+import { requestNotificationPermission, sendBrowserNotification } from '@/lib/actions/notifications'
 
 export default function NotificationsList() {
   const [notifications, setNotifications] = useState<Notification[]>([])

@@ -10,35 +10,49 @@ interface SparklineProps {
 const Sparkline: React.FC<SparklineProps> = ({ data, color }) => {
   if (!data || data.length === 0) return null;
 
-  const width = 80;
-  const height = 30;
+  const width = 100;
+  const height = 40;
   const padding = 2;
   const max = Math.max(...data, 1);
   const min = Math.min(...data, 0);
 
-  const points = data.map((value, index) => {
+  const pointArray = data.map((value, index) => {
     const x = padding + (index / (data.length - 1)) * (width - padding * 2);
-    const y = height - padding - ((value - min) / (max - min)) * (height - padding * 2);
-    return `${x},${y}`;
-  }).join(" ");
+    const y = height - padding - ((value - min) / (max - min || 1)) * (height - padding * 2);
+    return { x, y };
+  });
+
+  const pathLine = pointArray.map((p) => `${p.x},${p.y}`).join(" ");
+  const firstX = pointArray[0]?.x ?? 0;
+  const lastX = pointArray[pointArray.length - 1]?.x ?? 0;
+  const pathFill = `${firstX},${height} ${pathLine} ${lastX},${height}`;
+  const lastPoint = pointArray[pointArray.length - 1];
 
   return (
     <svg width={width} height={height} className="shrink-0">
+      <defs>
+        <linearGradient id={`grad-${color.replace("#", "")}`} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={pathFill} fill={`url(#grad-${color.replace("#", "")})`} />
       <polyline
-        points={points}
+        points={pathLine}
         fill="none"
         stroke={color}
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {/* Point final */}
-      {data.length > 0 && (
+      {lastPoint && (
         <circle
-          cx={points.split(" ")[data.length - 1]?.split(",")[0]}
-          cy={points.split(" ")[data.length - 1]?.split(",")[1]}
-          r="2.5"
-          fill={color}
+          cx={lastPoint.x}
+          cy={lastPoint.y}
+          r="3"
+          fill="white"
+          stroke={color}
+          strokeWidth="2"
         />
       )}
     </svg>
