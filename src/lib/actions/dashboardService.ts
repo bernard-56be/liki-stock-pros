@@ -9,6 +9,10 @@ export interface DashboardData {
   outOfStockCount: number
   exchange_rate: number
   default_currency: string
+  total_usd: number
+  total_cdf: number
+  progressionCA: number
+  progressionBenefice: number
 }
 
 export const fetchDashboardData = async (): Promise<DashboardData> => {
@@ -23,9 +27,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     .eq('id', user.id)
     .single()
 
-  if (profileError || !profile?.boutique_id) {
-    throw new Error('Aucune boutique associée à votre compte')
-  }
+  if (profileError || !profile?.boutique_id) throw new Error('Aucune boutique associée')
 
   const { data: boutique } = await supabase
     .from('boutiques')
@@ -57,9 +59,31 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     .select('*', { count: 'exact', head: true })
     .lte('quantity', 5)
 
-  if (!stockError) {
-    outOfStockCount = count || 0
-  }
+  if (!stockError) outOfStockCount = count || 0
+
+  const { data: sales } = await supabase
+    .from('sales')
+    .select('total_amount, sale_currency')
+
+  let total_usd = 0
+  let total_cdf = 0
+  sales?.forEach(sale => {
+    if (sale.sale_currency === 'USD') total_usd += Number(sale.total_amount)
+    if (sale.sale_currency === 'CDF') total_cdf += Number(sale.total_amount)
+  })
+
+  const todayDate = new Date().toISOString().split('T')[0]
+  const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0]
+
+  let caToday = 0, caYesterday = 0, benefToday = 0, benefYesterday = 0
+
+  revenue?.forEach(day => {
+    if (day.date === todayDate) { caToday = day.chiffre_affaires; benefToday = day.benefice_net }
+    if (day.date === yesterdayDate) { caYesterday = day.chiffre_affaires; benefYesterday = day.benefice_net }
+  })
+
+  const progressionCA = caYesterday > 0 ? ((caToday - caYesterday) / caYesterday) * 100 : 0
+  const progressionBenefice = benefYesterday > 0 ? ((benefToday - benefYesterday) / benefYesterday) * 100 : 0
 
   return {
     dailyRevenue: revenue || [],
@@ -67,5 +91,9 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     outOfStockCount,
     exchange_rate: exchangeRate,
     default_currency: defaultCurrency,
+    total_usd,
+    total_cdf,
+    progressionCA,
+    progressionBenefice,
   }
 }
