@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { approveEmployee, getPendingEmployees } from '@/lib/actions/employeeActions';
 
 // Interface stricte pour éviter le type 'any'
 interface PendingEmployee {
@@ -19,74 +20,117 @@ export default function OwnerValidationPage() {
   const [pendingEmployees, setPendingEmployees] = useState<PendingEmployee[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [limitAlert, setLimitAlert] = useState<string | null>(null);
+  const [subscriptionInfo, setSubscriptionInfo] = useState<{ current: number; max: number; plan: string } | null>(null);
   const supabase = createClient();
 
-  // 1. Déclaration de la fonction en premier pour corriger l'erreur d'accès avant déclaration
+  // Récupérer les employés en attente
   const fetchPendingEmployees = async () => {
     setLoading(true);
+    setError(null);
     
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('status', 'pending'); 
+      .eq('status', 'pending');
 
     if (error) {
       console.error("Erreur lors de la récupération:", error.message);
+      setError("Erreur de chargement des demandes");
     } else if (data) {
       setPendingEmployees(data as PendingEmployee[]);
     }
     setLoading(false);
   };
 
-  // 2. Appel de la fonction dans le useEffect en toute sécurité
-  useEffect(() => {
-    fetchPendingEmployees();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // 3. Gestion de la validation de l'employé
-  const handleAcceptEmployee = async (employeeId: string) => {
-    setActionLoading(employeeId);
-    
+  // Récupérer les infos d'abonnement
+  const fetchSubscriptionInfo = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non connecté");
+      if (!user) return;
 
-      const { data: ownerProfile, error: ownerError } = await supabase
+      const { data: profile } = await supabase
         .from('profiles')
         .select('boutique_id')
         .eq('id', user.id)
         .single();
 
-      if (ownerError || !ownerProfile?.boutique_id) {
-        alert("Erreur: Vous n'avez pas de boutique assignée pour accueillir cet employé.");
-        setActionLoading(null);
-        return;
-      }
+      if (!profile?.boutique_id) return;
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ 
-          boutique_id: ownerProfile.boutique_id, 
-          status: 'active' 
-        })
-        .eq('id', employeeId);
+      const { data: shop } = await supabase
+        .from('shops')
+        .select('subscription')
+        .eq('id', profile.boutique_id)
+        .single();
 
-      if (updateError) throw updateError;
-
-      setPendingEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+      const subscription = shop?.subscription || 'BRONZE';
       
+      // Compter les employés actifs
+      const { count } = await supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('boutique_id', profile.boutique_id)
+        .eq('role', 'employee')
+        .eq('status', 'active');
+
+      const limits = { BRONZE: 1, SILVER: 3, GOLD: Infinity };
+      const max = limits[subscription as keyof typeof limits] || 1;
+
+      setSubscriptionInfo({
+        current: count || 0,
+        max,
+        plan: subscription,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    fetchPendingEmployees();
+    fetchSubscriptionInfo();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Gestion de la validation avec vérification de l'offre
+  const handleAcceptEmployee = async (employeeId: string) => {
+    setActionLoading(employeeId);
+    setError(null);
+    setSuccess(null);
+    setLimitAlert(null);
+
+    try {
+      const result = await approveEmployee(employeeId);
+
+      if (!result.success) {
+        if (result.limitReached) {
+          setLimitAlert(result.error || 'Limite d\'employés atteinte');
+          // Mettre à jour les infos d'abonnement
+          await fetchSubscriptionInfo();
+        } else {
+          setError(result.error || 'Erreur lors de l\'approbation');
+        }
+      } else {
+        setSuccess('Employé approuvé avec succès');
+        setPendingEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+        await fetchSubscriptionInfo();
+      }
     } catch (error) {
       console.error("Erreur lors de la validation:", error);
-      alert("Une erreur est survenue lors de la validation.");
+      setError("Une erreur est survenue lors de la validation");
     } finally {
       setActionLoading(null);
     }
   };
 
-  // 4. Gestion du refus de l'employé
+  // Gestion du refus de l'employé
   const handleRejectEmployee = async (employeeId: string) => {
     setActionLoading(employeeId);
+    setError(null);
+    setSuccess(null);
+    
     try {
       const { error } = await supabase
         .from('profiles')
@@ -94,9 +138,11 @@ export default function OwnerValidationPage() {
         .eq('id', employeeId);
 
       if (error) throw error;
+      setSuccess('Employé refusé');
       setPendingEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
     } catch (error) {
       console.error("Erreur lors du refus:", error);
+      setError("Erreur lors du refus");
     } finally {
       setActionLoading(null);
     }
@@ -108,7 +154,40 @@ export default function OwnerValidationPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Validation des Employés</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Validation des Employés</h1>
+        {subscriptionInfo && (
+          <div className="text-sm bg-gray-100 px-4 py-2 rounded-lg">
+            <span className="font-medium">Plan {subscriptionInfo.plan}:</span>
+            <span className="ml-2">
+              {subscriptionInfo.current} / {subscriptionInfo.max === Infinity ? '∞' : subscriptionInfo.max} employés
+            </span>
+          </div>
+        )}
+      </div>
+      
+      {/* Messages */}
+      {error && (
+        <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4">
+          <p className="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border border-green-300 rounded-lg p-4 mb-4">
+          <p className="text-green-700">{success}</p>
+        </div>
+      )}
+
+      {limitAlert && (
+        <div className="bg-yellow-50 border border-yellow-300 rounded-lg p-4 mb-4">
+          <p className="text-yellow-800 font-bold">⚠️ Limite d'employés atteinte</p>
+          <p className="text-yellow-700">{limitAlert}</p>
+          <button className="mt-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm">
+            Passer à l'offre Silver
+          </button>
+        </div>
+      )}
       
       {pendingEmployees.length === 0 ? (
         <Card className="bg-gray-50 border-dashed">
