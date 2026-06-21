@@ -6,15 +6,12 @@ import { generateDailyReport } from "@/lib/actions/reports";
 import DashboardKpi from "@/components/DashboardKpi";
 import SalesChart from "@/components/SalesChart";
 import NotificationBell from "@/components/shared/NotificationBell";
-import { useNotifications } from "@/contexts/NotificationContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Notification context
-  const { unreadCount } = useNotifications();
 
   useEffect(() => {
     const load = async () => {
@@ -64,58 +61,60 @@ export default function OwnerDashboardPage() {
   const benefSparkline = last7Days.map(d => d.benefice_net);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 space-y-6">
-      {/* Header avec NotificationBell */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleDownloadReport}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            📋 Télécharger le rapport
-          </button>
-          <NotificationBell />
+    <NotificationProvider>
+      <div className="min-h-screen bg-gray-50 p-4 md:p-8 space-y-6">
+        {/* Header avec NotificationBell */}
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleDownloadReport}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+            >
+              📋 Télécharger le rapport
+            </button>
+            <NotificationBell />
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <DashboardKpi
-          title="💰 Chiffre d'Affaires Global"
-          value={`${caUSD.toFixed(2)} $`}
-          secondary={`${caCDF.toLocaleString()} FC`}
-          valueColor="text-green-600"
-          progression={data.progressionCA}
-          sparklineData={caSparkline}
-          sparklineColor="#10B981"
-        />
-        <DashboardKpi
-          title="📈 Bénéfice Net Global"
-          value={`${benefUSD.toFixed(2)} $`}
-          secondary={`${benefCDF.toLocaleString()} FC`}
-          valueColor="text-blue-600"
-          progression={data.progressionBenefice}
-          sparklineData={benefSparkline}
-          sparklineColor="#3B82F6"
-        />
-        <DashboardKpi
-          title="🚨 Ruptures"
-          value={data.outOfStockCount}
-          valueColor="text-red-600"
-        />
-        <DashboardKpi
-          title="💵 Total perçu en USD"
-          value={`$${data.total_usd.toLocaleString()}`}
-          valueColor="text-blue-600"
-        />
-        <DashboardKpi
-          title="💵 Total perçu en CDF"
-          value={`${data.total_cdf.toLocaleString()} FC`}
-          valueColor="text-green-600"
-        />
-      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <DashboardKpi
+            title="💰 Chiffre d'Affaires Global"
+            value={`${caUSD.toFixed(2)} $`}
+            secondary={`${caCDF.toLocaleString()} FC`}
+            valueColor="text-green-600"
+            progression={data.progressionCA}
+            sparklineData={caSparkline}
+            sparklineColor="#10B981"
+          />
+          <DashboardKpi
+            title="📈 Bénéfice Net Global"
+            value={`${benefUSD.toFixed(2)} $`}
+            secondary={`${benefCDF.toLocaleString()} FC`}
+            valueColor="text-blue-600"
+            progression={data.progressionBenefice}
+            sparklineData={benefSparkline}
+            sparklineColor="#3B82F6"
+          />
+          <DashboardKpi
+            title="🚨 Ruptures"
+            value={data.outOfStockCount}
+            valueColor="text-red-600"
+          />
+          <DashboardKpi
+            title="💵 Total perçu en USD"
+            value={`$${data.total_usd.toLocaleString()}`}
+            valueColor="text-blue-600"
+          />
+          <DashboardKpi
+            title="💵 Total perçu en CDF"
+            value={`${data.total_cdf.toLocaleString()} FC`}
+            valueColor="text-green-600"
+          />
+        </div>
 
-      <SalesChart topProducts={data.topProducts} />
-    </div>
+        <SalesChart topProducts={data.topProducts} />
+      </div>
+    </NotificationProvider>
   );
 }
