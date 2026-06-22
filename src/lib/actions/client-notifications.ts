@@ -1,4 +1,4 @@
-// src/lib/client-notifications.ts
+// src/lib/actions/client-notifications.ts
 // Ce fichier est pour les fonctions côté client uniquement
 
 /**

@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getUnreadNotifications, markAllNotificationsAsRead } from '@/lib/actions/notifications'
+import { requestNotificationPermission } from '@/lib/actions/client-notifications'
 
 type Notification = {
   id: string
@@ -38,11 +39,18 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const loadNotifications = async () => {
-      const data = await getUnreadNotifications()
-      setNotifications(data || [])
-      setLoading(false)
+      try {
+        const data = await getUnreadNotifications()
+        setNotifications(data || [])
+      } catch (error) {
+        console.error('Erreur de chargement:', error)
+      } finally {
+        setLoading(false)
+      }
     }
     loadNotifications()
+    
+    requestNotificationPermission()
   }, [])
 
   useEffect(() => {

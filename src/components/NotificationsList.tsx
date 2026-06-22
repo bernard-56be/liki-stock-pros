@@ -1,98 +1,89 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { getUserNotifications, markAllNotificationsAsRead, type Notification } from '@/lib/actions/services/notificationService'
-import { requestNotificationPermission, sendBrowserNotification } from '@/lib/actions/notifications'
+import { useState, useEffect } from 'react'
+import { getUnreadNotifications, markAllNotificationsAsRead } from '@/lib/actions/notifications'
+import { requestNotificationPermission, sendBrowserNotification } from '@/lib/actions/client-notifications'
+
+type Notification = {
+  id: string
+  title: string
+  message: string
+  read: boolean
+  created_at: string
+  type: 'danger' | 'warning' | 'info' | 'success'
+}
 
 export default function NotificationsList() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  const load = async () => {
+  useEffect(() => {
+    loadNotifications()
+    requestNotificationPermission()
+  }, [])
+
+  const loadNotifications = async () => {
     try {
-      setLoading(true)
-      const data = await getUserNotifications()
-      setNotifications(data)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erreur inconnue'
-      setError(message)
+      const data = await getUnreadNotifications()
+      setNotifications(data || [])
+    } catch (error) {
+      console.error('Erreur de chargement:', error)
     } finally {
       setLoading(false)
     }
   }
 
-  useEffect(() => {
-    requestNotificationPermission()
-    load()
-  }, [])
-
-  useEffect(() => {
-    notifications
-      .filter((n) => !n.is_read)
-      .forEach((n) => {
-        sendBrowserNotification(n.title, n.message)
-      })
-  }, [notifications])
-
-  const handleMarkAllRead = async () => {
+  const handleMarkAllAsRead = async () => {
     try {
       await markAllNotificationsAsRead()
-      load()
-    } catch (err: unknown) {
-      console.error(err)
+      setNotifications([])
+    } catch (error) {
+      console.error('Erreur:', error)
     }
   }
 
-  const getIcon = (type: string) => {
-    switch (type) {
-      case 'danger': return '🔴'
-      case 'warning': return '🟠'
-      case 'success': return '🟢'
-      case 'info': return '🔵'
-      default: return '⚪'
-    }
+  const handleSendTestNotification = () => {
+    sendBrowserNotification('Test', 'Ceci est une notification de test')
   }
 
-  if (loading) return <p className="text-gray-600 p-6">Chargement des notifications...</p>
-  if (error) return <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">{error}</div>
+  if (loading) return <div className="p-4 text-gray-500">Chargement...</div>
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900">🔔 Notifications</h2>
-        {notifications.some(n => !n.is_read) && (
+    <div className="p-4">
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-xl font-bold">Notifications</h2>
+        <div className="flex gap-2">
           <button
-            onClick={handleMarkAllRead}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+            onClick={handleSendTestNotification}
+            className="text-sm text-gray-600 hover:text-gray-800"
+          >
+            🔔 Tester
+          </button>
+          <button
+            onClick={handleMarkAllAsRead}
+            className="text-sm text-blue-600 hover:text-blue-800"
           >
             Tout marquer comme lu
           </button>
-        )}
+        </div>
       </div>
 
       {notifications.length === 0 ? (
-        <p className="text-gray-600">Aucune notification pour le moment.</p>
+        <p className="text-gray-500 text-center py-8">Aucune notification</p>
       ) : (
-        <div className="space-y-3">
-          {notifications.map(notif => (
-            <div
-              key={notif.id}
-              className={`bg-white rounded-xl p-4 border shadow-sm flex items-start gap-3 ${
-                notif.is_read ? 'opacity-60' : ''
+        <div className="space-y-2">
+          {notifications.map((notif) => (
+            <div 
+              key={notif.id} 
+              className={`p-3 rounded-lg border ${
+                notif.type === 'danger' ? 'bg-red-50 border-red-200' : 'bg-white border-gray-200'
               }`}
             >
-              <span className="text-xl">{getIcon(notif.type)}</span>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-800">{notif.title}</p>
-                <p className="text-sm text-gray-600">{notif.message}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {new Date(notif.created_at).toLocaleString('fr-FR')}
-                </p>
-              </div>
-              {!notif.is_read && (
-                <span className="w-2 h-2 bg-blue-500 rounded-full mt-2 shrink-0" />
-              )}
+              <p className="font-medium">{notif.title}</p>
+              <p className="text-sm text-gray-600">{notif.message}</p>
+              <p className="text-xs text-gray-400">
+                {new Date(notif.created_at).toLocaleString()}
+              </p>
             </div>
           ))}
         </div>

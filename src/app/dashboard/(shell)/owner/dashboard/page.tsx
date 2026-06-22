@@ -63,7 +63,6 @@ export default function OwnerDashboardPage() {
   return (
     <NotificationProvider>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8 space-y-6">
-        {/* Header avec NotificationBell */}
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
           <div className="flex items-center gap-3">
