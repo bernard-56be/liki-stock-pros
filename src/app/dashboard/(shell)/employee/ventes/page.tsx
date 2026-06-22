@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
+import { saveToCache, getFromCache } from '@/lib/utils/storage';
 
 const ITEMS_PER_PAGE = 6;
 const EXCHANGE_RATE = 2850.02; 
@@ -312,21 +313,26 @@ export default function EmployeeSalesPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Chargement des produits
+  // 1. Mise à jour du chargement pour inclure le cache
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoading(true);
       const result = await getProducts();
       if (result.success && result.data) {
         setProducts(result.data);
+        saveToCache('products_cache', result.data); // Sauvegarde automatique du catalogue 
         setError(null);
       } else {
-        setError(result.error || 'Erreur de chargement des produits');
+        const cached = getFromCache('products_cache'); // Récupération en cas d'échec 
+        if (cached) setProducts(cached);
+        else setError(result.error || 'Erreur de chargement des produits');
       }
       setIsLoading(false);
     };
     loadProducts();
   }, []);
+
+  // Chargement des produits
 
   // Filtrage + pagination
   const filteredProducts = useMemo(() => {
@@ -402,9 +408,13 @@ export default function EmployeeSalesPage() {
   const hasStockExceed = useMemo(() => cart.some((item) => item.quantity > item.maxStock), [cart]);
   const isCartEmpty = cart.length === 0;
 
-  // Finalisation de la vente
+  // Finalisation de la vente avec protection hors-ligne
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (!navigator.onLine) {
+      alert("Connexion perdue. Vente mise en attente.");
+      return;
+    }
+     if (cart.length === 0) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -450,8 +460,8 @@ export default function EmployeeSalesPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
+  };  
+  
   const openCartSheet = () => setIsSheetOpen(true);
   const closeCartSheet = () => setIsSheetOpen(false);
 
