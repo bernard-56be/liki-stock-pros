@@ -2,16 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { fetchDashboardData, type DashboardData } from "@/lib/actions/dashboardService";
-import { generateDailyReport } from "@/lib/actions/reports";
 import DashboardKpi from "@/components/DashboardKpi";
 import SalesChart from "@/components/SalesChart";
 import NotificationBell from "@/components/shared/NotificationBell";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { generateDailyReportHtml } from '@/lib/actions/reports';
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reportDate, setReportDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
   useEffect(() => {
     const load = async () => {
@@ -31,12 +32,12 @@ export default function OwnerDashboardPage() {
 
   const handleDownloadReport = async () => {
     try {
-      const html = await generateDailyReport();
+      const html = await generateDailyReportHtml(reportDate);
       const blob = new Blob([html], { type: "text/html" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `rapport-caisse-${new Date().toISOString().split("T")[0]}.html`;
+      a.download = `rapport-caisse-${reportDate}.html`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
@@ -66,6 +67,12 @@ export default function OwnerDashboardPage() {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
           <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={reportDate}
+              onChange={(e) => setReportDate(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
+            />
             <button
               onClick={handleDownloadReport}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
