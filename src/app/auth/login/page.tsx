@@ -3,6 +3,7 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Eye, EyeOff } from 'lucide-react'; 
 import { GlassCard } from '@/components/ui/GlassCard';
 import { loginAction } from '../../../lib/actions/auth';
 
@@ -11,11 +12,13 @@ function LoginPageContent() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'owner' | 'employee'>('owner');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); 
   const [errorMessage, setErrorMessage] = useState('');
   const nextPath = searchParams.get('next') ?? '';
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (isLoading) return; // Sécurité supplémentaire anti-idempotence au niveau de la fonction
     setIsLoading(true);
     setErrorMessage('');
 
@@ -65,10 +68,30 @@ function LoginPageContent() {
         
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Mot de passe</label>
-          <input type="password" name="password" required placeholder="••••••••" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-900 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
+          <div className="relative w-full">
+            <input 
+              type={showPassword ? "text" : "password"} 
+              name="password" 
+              required 
+              placeholder="••••••••" 
+              className="w-full p-3 pr-12 rounded-xl bg-white/60 border border-white/40 text-gray-900 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" 
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((prev) => !prev)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-purple-700 transition-colors p-1"
+              aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </button>
+          </div>
         </div>
 
-        <button disabled={isLoading} type="submit" className="w-full flex justify-center items-center bg-purple-700 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-purple-800 transition-all transform active:scale-95 mt-4 disabled:opacity-70">
+        <button 
+          disabled={isLoading} 
+          type="submit" 
+          className={`w-full flex justify-center items-center bg-purple-700 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-purple-800 transition-all transform mt-4 disabled:opacity-70 disabled:pointer-events-none ${!isLoading ? 'active:scale-95' : ''}`}
+        >
           {isLoading ? "CONNEXION EN COURS..." : "SE CONNECTER"}
         </button>
       </form>

@@ -16,7 +16,6 @@ import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 import { getProducts, deleteProduct, type Product } from '@/lib/actions/inventory';
 import ProductForm from '@/components/inventory/ProductForm'; 
 
-
 function roundToTwoDecimals(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -57,12 +56,9 @@ export function formatCurrency(amount: number, currency: 'USD' | 'CDF'): string 
     return `${formattedNumber} $`;
   }
 }
-// =========================================================================
 
 const ITEMS_PER_PAGE = 6;
-const TAXE_ECHANGE = 2850; // Votre taux de change centralisé
 
-// CORRECTION : Déclaration sous forme de type alias avec Omit pour écraser 'currency' proprement
 export type ExtendedProduct = Omit<Product, 'currency'> & {
   currency?: "USD" | "CDF";
   stock_alerte?: number;
@@ -72,31 +68,30 @@ export type ExtendedProduct = Omit<Product, 'currency'> & {
   imageUrl?: string | null;
 };
 
-// Alias de compatibilité pour ne pas casser le reste du fichier
 type LocalProduct = ExtendedProduct;
 
 // ---------- Composant de ligne Desktop optimisé ----------
 const ProductRow = memo(function ProductRow({
   product,
+  exchangeRate, // Reçoit le taux dynamiquement
   onEdit,
   onDelete,
 }: {
   product: LocalProduct;
+  exchangeRate: number; 
   onEdit: (product: LocalProduct) => void;
   onDelete: (id: string) => void;
 }) {
-  // Détection de la devise d'origine du produit (fallback sur USD par défaut si non spécifié)
   const productCurrency = product?.currency || "USD";
 
-  // Extraction propre des montants bruts depuis l'objet
   const purchaseRaw = Number(product?.purchase_price ?? (product as any).purchasePrice) || 0;
   const saleRaw = Number(product?.sale_price ?? (product as any).salePrice) || 0;
   const minRaw = Number(product?.min_price ?? (product as any).minPrice) || 0;
 
-  // CHANGEMENT : Conversion et affichage dynamique selon la devise propre du produit
-  const prixAchatAffichage = convertAmount(purchaseRaw, TAXE_ECHANGE, productCurrency, productCurrency);
-  const prixVenteAffichage = convertAmount(saleRaw, TAXE_ECHANGE, productCurrency, productCurrency);
-  const prixMinAffichage = convertAmount(minRaw, TAXE_ECHANGE, productCurrency, productCurrency);
+  // CHANGEMENT : Utilisation de exchangeRate dynamique au lieu de la constante globale
+  const prixAchatAffichage = convertAmount(purchaseRaw, exchangeRate, productCurrency, productCurrency);
+  const prixVenteAffichage = convertAmount(saleRaw, exchangeRate, productCurrency, productCurrency);
+  const prixMinAffichage = convertAmount(minRaw, exchangeRate, productCurrency, productCurrency);
 
   const isStockBas = product.quantity <= (product.stock_alerte ?? 5);
 
@@ -219,6 +214,7 @@ const Pagination = memo(function Pagination({
 // ---------- Page principale ----------
 export default function OwnerInventoryPage() {
   const [products, setProducts] = useState<LocalProduct[]>([]);
+  const [exchangeRate, setExchangeRate] = useState<number>(2850); // État local initialisé à 2850 par défaut
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -231,6 +227,9 @@ export default function OwnerInventoryPage() {
       const result = await getProducts();
       if (result.success && result.data) {
         setProducts(result.data as LocalProduct[]);
+        if (result.exchangeRate) {
+          setExchangeRate(result.exchangeRate); 
+        }
         setError(null);
       } else {
         setError(result.error || 'Erreur de chargement');
@@ -289,7 +288,7 @@ export default function OwnerInventoryPage() {
   if (isLoading && products.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="text-gray-500">Chargement des produits...</div>
+        <div className="text-gray-500">Chargement des produits et du taux...</div>
       </div>
     );
   }
@@ -309,7 +308,7 @@ export default function OwnerInventoryPage() {
           <div>
             <CardTitle className="text-xl font-bold text-gray-900">Inventaire</CardTitle>
             <p className="text-sm text-gray-500 mt-1">
-              Gestion des produits (recherche instantanée, pagination {ITEMS_PER_PAGE}/page)
+              Gestion des produits ({products.length} produits, pagination 6/page)
             </p>
           </div>
           <Button onClick={handleOpenCreate} className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg px-4 shadow-sm transition-colors">
@@ -337,6 +336,7 @@ export default function OwnerInventoryPage() {
                   <ProductRow
                     key={product.id}
                     product={product}
+                    exchangeRate={exchangeRate} 
                     onEdit={handleOpenEdit}
                     onDelete={handleDelete}
                   />
@@ -352,7 +352,7 @@ export default function OwnerInventoryPage() {
             </table>
           </div>
 
-          {/* Cartes Mobile avec fonctions appliquées */}
+          {/* Cartes Mobile */}
           <div className="grid gap-3 md:hidden">
             {paginatedProducts.map((product) => {
               const productCurrency = product?.currency || "USD";
@@ -360,10 +360,10 @@ export default function OwnerInventoryPage() {
               const sale = Number(product?.sale_price ?? (product as any).salePrice) || 0;
               const min = Number(product?.min_price ?? (product as any).minPrice) || 0;
 
-              // Application dynamique pour le mobile également
-              const prixAchatAffichage = convertAmount(purchase, TAXE_ECHANGE, productCurrency, productCurrency);
-              const prixVenteAffichage = convertAmount(sale, TAXE_ECHANGE, productCurrency, productCurrency);
-              const prixMinAffichage = convertAmount(min, TAXE_ECHANGE, productCurrency, productCurrency);
+              // Application dynamique pour le mobile
+              const prixAchatAffichage = convertAmount(purchase, exchangeRate, productCurrency, productCurrency);
+              const prixVenteAffichage = convertAmount(sale, exchangeRate, productCurrency, productCurrency);
+              const prixMinAffichage = convertAmount(min, exchangeRate, productCurrency, productCurrency);
 
               return (
                 <Card key={product.id} className="border border-gray-200 shadow-sm">
@@ -442,7 +442,7 @@ export default function OwnerInventoryPage() {
           <ProductForm
             product={editingProduct} 
             onClose={closeSheet}     
-            exchangeRate={TAXE_ECHANGE}   
+            exchangeRate={exchangeRate} 
           />
         </div>
       </AnimatedSheet>
