@@ -54,25 +54,41 @@ async function getBoutiqueId(): Promise<string> {
   return boutique.id;
 }
 
-export async function getProducts(): Promise<{ success: boolean; data?: Product[]; error?: string }> {
+export async function getProducts(): Promise<{ 
+  success: boolean; 
+  data?: Product[]; 
+  exchangeRate?: number; // <-- Ajout du taux de change dans la réponse
+  error?: string 
+}> {
   try {
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
-    const { data, error } = await supabase
+    // 1. Récupération des produits
+    const { data: productsData, error: productsError } = await supabase
       .from('products')
       .select('*')
       .eq('boutique_id', boutiqueId)
       .order('name');
 
-    if (error) throw error;
+    if (productsError) throw productsError;
 
-    // 2. EXTRACTION DE LA DEVISE DEPUIS LA TABLE SUPABASE
-    const products: Product[] = data.map((p) => ({
+    // 2. Récupération dynamique du taux de change de la boutique
+    const { data: boutiqueData, error: boutiqueError } = await supabase
+      .from('boutiques')
+      .select('taux_change')
+      .eq('id', boutiqueId)
+      .single();
+
+    // Fallback à 2850 si aucun taux n'est configuré ou s'il y a une erreur mineure
+    const currentRate = !boutiqueError && boutiqueData?.taux_change ? Number(boutiqueData.taux_change) : 2850;
+
+    // 3. Extraction et mapping de la devise depuis la table
+    const products: Product[] = productsData.map((p) => ({
       id: p.id,
       name: p.name,
       quantity: p.quantity,
-      currency: p.currency || 'USD', // <-- Mappe la colonne de ta base de données (fallback USD)
+      currency: p.currency || 'USD',
       purchasePrice: p.purchase_price,
       salePrice: p.sale_price,
       minPrice: p.min_price,
@@ -81,7 +97,7 @@ export async function getProducts(): Promise<{ success: boolean; data?: Product[
       isLowStock: p.quantity <= p.stock_alerte,
     }));
 
-    return { success: true, data: products };
+    return { success: true, data: products, exchangeRate: currentRate };
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : "Erreur lors de la récupération des produits";
     console.error('getProducts error:', err);
@@ -130,6 +146,11 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
     const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
+    
+    // VALIDATION STRICTE DES PRIX : Blocage de sécurité Serveur
+    if (salePrice > 0 && minPrice >= salePrice) {
+      return { success: false, error: "Validation échouée : Le prix minimum doit être strictement inférieur au prix de vente." };
+    }
     
     // Correction ici : prend en charge soit 'min_stock' (formulaire) soit 'stockAlerte'
     const stockAlerte = parseInt(formData.get('min_stock') as string) || 
@@ -186,6 +207,11 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
     
+    // VALIDATION STRICTE DES PRIX 
+    if (salePrice > 0 && minPrice >= salePrice) {
+      return { success: false, error: "Validation échouée : Le prix minimum doit être strictement inférieur au prix de vente." };
+    }
+    
     const stockAlerte = parseInt(formData.get('min_stock') as string) || 
                         parseInt(formData.get('stockAlerte') as string) || 5;
                         
@@ -230,7 +256,6 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 
 export async function deleteProduct(productId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    
     const boutiqueId = await getBoutiqueId();
     const supabase = await createClient();
 
