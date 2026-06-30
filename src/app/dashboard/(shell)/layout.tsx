@@ -6,37 +6,37 @@ import { DashboardClientLayout } from './DashboardClientLayout';
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardShellLayout({
-  children,
+  children,
 }: {
-  children: ReactNode;
+  children: ReactNode;
 }) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) redirect('/auth/login');
+  if (!user) redirect('/auth/login');
 
-  let role = user.user_metadata?.role;
-  if (!role) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    role = profile?.role;
-  }
+  let role = user.user_metadata?.role;
+  if (!role) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+    role = profile?.role;
+  }
 
-  if (role !== 'owner' && role !== 'employee') redirect('/auth/login');
+  if (role !== 'owner' && role !== 'employee') redirect('/auth/login');
 
-  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
-  const userAvatar = user.user_metadata?.avatar_url || null;
+  const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
+  const userAvatar = user.user_metadata?.avatar_url || null;
 
-  return (
-    <DashboardClientLayout
-      role={role}
-      userName={userName}
-      userAvatar={userAvatar}
-    >
-      {children}
-    </DashboardClientLayout>
-  );
+  return (
+    <DashboardClientLayout
+      role={role}
+      userName={userName}
+      userAvatar={userAvatar}
+    >
+      {children}
+    </DashboardClientLayout>
+  );
 }
