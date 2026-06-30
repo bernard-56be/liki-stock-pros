@@ -8,10 +8,10 @@ import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 interface HeaderProps {
   userName: string;
   userAvatar: string | null;
-  currentRate?: number; // Nouvelle prop optionnelle pour le taux dynamique (ex: 2850)
+  currentRate: number; // Retrait du '?' (obligatoire maintenant)
 }
 
-export function Header({ userName, userAvatar, currentRate = 2850 }: HeaderProps) {
+export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
   const { toggleMenu } = useMenu();
 
   // Formatage local propre du taux (ex: 2 850)
@@ -35,7 +35,7 @@ export function Header({ userName, userAvatar, currentRate = 2850 }: HeaderProps
         {/* Zone centrale/droite : Actions utilisateur + Pastille Taux */}
         <div className="flex items-center gap-3">
           
-          {/* Pastille visuelle discrète et fixe du Taux (Demande du Livrable 5) */}
+          {/* Pastille visuelle dynamique */}
           <div className="mr-2 inline-flex items-center gap-1.5 rounded-full border border-purple-100 bg-purple-50/60 px-3 py-1 text-xs font-semibold text-purple-700 backdrop-blur-sm shadow-sm">
             <span className="relative flex h-1.5 w-1.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>

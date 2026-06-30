@@ -138,6 +138,17 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
     exchange_rate: rate,
     par_employe,
   }
+  
+}
+
+export interface ActionResponse {
+  success: boolean;
+  message?: string;
+  error?: string;
+  limitReached?: boolean; // Ajoutez cette ligne
+  currentCount?: number;  // Ajoutez cette ligne
+  maxAllowed?: number;    // Ajoutez cette ligne
+  subscription?: string;  // Ajoutez cette ligne
 }
 
 // ---- Génération du rapport HTML ----
