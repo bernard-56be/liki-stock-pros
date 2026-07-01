@@ -2,7 +2,7 @@
 'use client'; 
 
 import { useState } from 'react';
-import { updateEmployeeRole } from '@/lib/actions/employeeActions';
+import { updateEmployeeRole } from '@/lib/actions/employee-actions';
 import { toast } from 'sonner';
 
 // Mise à jour du type pour inclure associate et owner comme requis

@@ -1,4 +1,4 @@
-import { getEmployeesFromDatabase, Employee } from '@/lib/actions/employeeActions';
+import { getEmployeesFromDatabase, Employee } from '@/lib/actions/employee-actions';
 import RoleSwitcher from '../(shell)/employee/RoleSwitcher';
 
 
