@@ -44,6 +44,7 @@ export default async function SettingsPage() {
       role={role}
       userName={userName}
       userAvatar={avatar}
+      currentRate={exchangeRate}
     >
       <div className="p-4 md:p-6 lg:p-8">
         <SettingsClient 
