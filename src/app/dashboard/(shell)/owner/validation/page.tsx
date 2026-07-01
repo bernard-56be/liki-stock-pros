@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { approveEmployee, getPendingEmployees } from '@/lib/actions/employeeActions';
+import { approveEmployee, rejectEmployee } from '@/lib/actions/employee-actions';
 
 // Interface stricte pour éviter le type 'any'
 interface PendingEmployee {
@@ -107,7 +107,6 @@ export default function OwnerValidationPage() {
       if (!result.success) {
         if (result.limitReached) {
           setLimitAlert(result.error || 'Limite d\'employés atteinte');
-          // Mettre à jour les infos d'abonnement
           await fetchSubscriptionInfo();
         } else {
           setError(result.error || 'Erreur lors de l\'approbation');
@@ -125,21 +124,20 @@ export default function OwnerValidationPage() {
     }
   };
 
-  // Gestion du refus de l'employé
+  // Gestion du refus de l'employé (suppression définitive)
   const handleRejectEmployee = async (employeeId: string) => {
     setActionLoading(employeeId);
     setError(null);
     setSuccess(null);
     
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ status: 'rejected' })
-        .eq('id', employeeId);
-
-      if (error) throw error;
-      setSuccess('Employé refusé');
-      setPendingEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+      const result = await rejectEmployee(employeeId);
+      if (result.success) {
+        setSuccess('Employé refusé et supprimé');
+        setPendingEmployees((prev) => prev.filter((emp) => emp.id !== employeeId));
+      } else {
+        setError(result.error || 'Erreur lors du refus');
+      }
     } catch (error) {
       console.error("Erreur lors du refus:", error);
       setError("Erreur lors du refus");
