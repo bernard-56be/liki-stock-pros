@@ -9,11 +9,14 @@ interface HeaderProps {
   userName: string;
   userAvatar: string | null;
   currentRate: number;
+  currentRate: number; 
 }
 
 export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
   const { toggleMenu } = useMenu();
 
+  // Gestion sécurisée du taux de change : 
+  // Si currentRate est 0 ou null/undefined, on affiche "---" pour éviter NaN
   const isValidRate = typeof currentRate === 'number' && currentRate > 0;
   const formattedRate = isValidRate 
     ? new Intl.NumberFormat('fr-FR').format(currentRate) 

@@ -18,12 +18,14 @@ export const useMenu = () => {
   return ctx;
 };
 
+// Ajout du type pour les props
 interface DashboardClientLayoutProps {
   children: ReactNode;
   role: DashboardRole;
   userName: string;
   userAvatar: string | null;
   currentRate: number;
+  currentRate: number; // Taux de change injecté depuis le Layout serveur
 }
 
 export function DashboardClientLayout({
@@ -42,6 +44,12 @@ export function DashboardClientLayout({
     <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
       <div className="flex min-h-screen flex-col bg-gray-100 w-full">
         <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
+        {/* currentRate est ici transmis au Header */}
+        <Header 
+          userName={userName} 
+          userAvatar={userAvatar} 
+          currentRate={currentRate} 
+        />
         
         <div className="flex flex-1 flex-col md:flex-row">
           <Sidebar role={role} />

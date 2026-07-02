@@ -68,7 +68,7 @@ export default function RegisterPage() {
         <form action={handleFormAction} className="space-y-4">
           <div className="w-full">
             <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Nom Complet</label>
-            <input type="text" name="fullName" required placeholder="Ex: Jean Kabulo" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
+            <input type="text" name="fullName" required placeholder="Ex: Amos Kiyela" className="w-full p-3 rounded-xl bg-white/60 border border-white/40 text-gray-800 outline-none focus:ring-2 focus:ring-purple-500 shadow-inner" />
           </div>
 
           {activeTab === 'owner' ? (

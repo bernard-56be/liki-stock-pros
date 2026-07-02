@@ -4,6 +4,11 @@ import { ReactNode, useState } from 'react';
 import { convertAmount, formatCurrency } from '@/lib/utils/currency';
 import { processSale } from '@/lib/actions/process-sale';
 
+
+export const CardDescription = ({ children, className = '' }: { children: ReactNode; className?: string }) => (
+  <p className={`text-sm text-gray-500 ${className}`}>{children}</p>
+);
+
 // --- COMPOSANTS DE STRUCTURE UI (PROPRES) ---
 interface CardProps {
   children: ReactNode;

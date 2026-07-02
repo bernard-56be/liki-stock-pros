@@ -8,35 +8,62 @@ import { revalidatePath } from 'next/cache'
 // ============================================================
 
 export async function getUnreadNotifications() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Non authentifié')
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Si pas de session (utilisateur non authentifié), on retourne un tableau vide proprement au lieu de planter
+    if (!user) {
+      console.warn('getUnreadNotifications: Utilisateur non authentifié')
+      return []
+    }
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('read', false)
-    .order('created_at', { ascending: false })
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('read', false)
+      .order('created_at', { ascending: false })
 
-  if (error) throw new Error(error.message)
-  return data || []
+    if (error) {
+      console.error(error.message)
+      return []
+    }
+    
+    return data || []
+  } catch (e) {
+    console.error('Erreur getUnreadNotifications:', e)
+    return []
+  }
 }
 
 export async function getAllNotifications(limit = 20) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Non authentifié')
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    
+    if (!user) {
+      console.warn('getAllNotifications: Utilisateur non authentifié')
+      return []
+    }
 
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .limit(limit)
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(limit)
 
-  if (error) throw new Error(error.message)
-  return data || []
+    if (error) {
+      console.error(error.message)
+      return []
+    }
+    
+    return data || []
+  } catch (e) {
+    console.error('Erreur getAllNotifications:', e)
+    return []
+  }
 }
 
 export async function markNotificationAsRead(notificationId: string) {
