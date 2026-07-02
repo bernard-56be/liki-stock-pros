@@ -16,6 +16,7 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
+  // Récupérer le profil
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -25,26 +26,28 @@ export default async function SettingsPage() {
   const role = user.user_metadata?.role || profile?.role || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
   const avatar = profile?.avatar_url || null;
-
-  const exchangeRate = profile?.exchange_rate ?? 2850.00;
+  
+  // Valeurs par défaut sécurisées pour la devise
   const defaultCurrency = profile?.default_currency ?? 'USD';
 
   let boutiqueName = '';
-  let subscription = 'BRONZE';
-  let max_owners = 1;
-  let max_employees = 1;
+  // Modification : On va chercher dynamiquement la boutique et son taux de change réel
+  let exchangeRate = 2850.00;
 
-  if (role === 'owner' && profile?.boutique_id) {
-    const { data: boutique } = await supabase
-      .from('boutiques')
-      .select('name, subscription, max_owners, max_employees')
-      .eq('id', profile.boutique_id)
-      .single();
+  // On cherche la boutique soit par son ID (si l'utilisateur y est rattaché) soit par l'owner_id (pour le propriétaire EXAUCE)
+  const { data: boutiqueData } = await supabase
+    .from('boutiques')
+    .select('id, name, exchange_rate')
+    .or(`id.eq.${profile?.boutique_id},owner_id.eq.${user.id}`)
+    .maybeSingle();
 
-    boutiqueName = boutique?.name || '';
-    subscription = boutique?.subscription || 'BRONZE';
-    max_owners = boutique?.max_owners || 1;
-    max_employees = boutique?.max_employees || 1;
+  if (boutiqueData) {
+    exchangeRate = boutiqueData.exchange_rate ?? 2850.00;
+    
+    // Si c'est un propriétaire, on récupère le vrai nom de sa boutique
+    if (role === 'owner') {
+      boutiqueName = boutiqueData.name || '';
+    }
   }
 
   return (
