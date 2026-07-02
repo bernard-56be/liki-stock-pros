@@ -11,7 +11,7 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  // Récupérer le profil (inclut automatiquement exchange_rate et default_currency grâce au '*')
+  // Récupérer le profil
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -22,21 +22,27 @@ export default async function SettingsPage() {
   const userName = profile?.full_name || 'Utilisateur';
   const avatar = profile?.avatar_url || null;
   
-  // Valeurs par défaut sécurisées pour le taux et la devise (gérées par Enock)
-  const exchangeRate = profile?.exchange_rate ?? 2850.00;
+  // Valeurs par défaut sécurisées pour la devise
   const defaultCurrency = profile?.default_currency ?? 'USD';
   
   let boutiqueName = '';
+  // Modification : On va chercher dynamiquement la boutique et son taux de change réel
+  let exchangeRate = 2850.00;
 
-  // Si c'est un propriétaire, on récupère le vrai nom de sa boutique depuis la table 'boutiques'
-  if (role === 'owner' && profile?.boutique_id) {
-    const { data: boutique } = await supabase
-      .from('boutiques')
-      .select('name')
-      .eq('id', profile.boutique_id)
-      .single();
-      
-    boutiqueName = boutique?.name || '';
+  // On cherche la boutique soit par son ID (si l'utilisateur y est rattaché) soit par l'owner_id (pour le propriétaire EXAUCE)
+  const { data: boutiqueData } = await supabase
+    .from('boutiques')
+    .select('id, name, exchange_rate')
+    .or(`id.eq.${profile?.boutique_id},owner_id.eq.${user.id}`)
+    .maybeSingle();
+
+  if (boutiqueData) {
+    exchangeRate = boutiqueData.exchange_rate ?? 2850.00;
+    
+    // Si c'est un propriétaire, on récupère le vrai nom de sa boutique
+    if (role === 'owner') {
+      boutiqueName = boutiqueData.name || '';
+    }
   }
 
   return (
