@@ -6,7 +6,7 @@ import DashboardKpi from "@/components/DashboardKpi";
 import SalesChart from "@/components/SalesChart";
 import NotificationBell from "@/components/shared/NotificationBell";
 import { NotificationProvider } from "@/contexts/NotificationContext";
-import { generateDailyReportHtml } from '@/lib/actions/reports';
+import { generateDailyReportPdf } from '@/lib/actions/reports';
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -32,14 +32,11 @@ export default function OwnerDashboardPage() {
 
   const handleDownloadReport = async () => {
     try {
-      const html = await generateDailyReportHtml(reportDate);
-      const blob = new Blob([html], { type: "text/html" });
-      const url = URL.createObjectURL(blob);
+      const pdfDataUri = await generateDailyReportPdf(reportDate);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = `rapport-caisse-${reportDate}.html`;
+      a.href = pdfDataUri;
+      a.download = `rapport-caisse-${reportDate}.pdf`;
       a.click();
-      URL.revokeObjectURL(url);
     } catch (err) {
       console.error(err);
     }
@@ -47,19 +44,21 @@ export default function OwnerDashboardPage() {
 
   if (loading) return <div className="min-h-screen bg-gray-50 p-6"><p className="text-gray-600">Chargement...</p></div>;
   if (error) return <div className="min-h-screen bg-gray-50 p-6"><div className="p-4 bg-red-100 border border-red-400 text-red-700 rounded-xl font-bold">Erreur : {error}</div></div>;
-  if (!data) return null;
+  if (!data || !data.dailyRevenue || data.dailyRevenue.length === 0) {
+    return <div className="min-h-screen bg-gray-50 p-6"><p className="text-gray-500">Aucune donnée disponible pour le moment.</p></div>;
+  }
 
   const today = data.dailyRevenue[0] || { chiffre_affaires: 0, benefice_net: 0 };
-  const rate = data.exchange_rate;
+  const rate = data.exchange_rate || 2850;
 
-  const caUSD = today.chiffre_affaires;
-  const benefUSD = today.benefice_net;
+  const caUSD = Number(today.chiffre_affaires) || 0;
+  const benefUSD = Number(today.benefice_net) || 0;
   const caCDF = caUSD * rate;
   const benefCDF = benefUSD * rate;
 
   const last7Days = [...data.dailyRevenue].reverse().slice(-7);
-  const caSparkline = last7Days.map(d => d.chiffre_affaires);
-  const benefSparkline = last7Days.map(d => d.benefice_net);
+  const caSparkline = last7Days.map(d => Number(d.chiffre_affaires) || 0);
+  const benefSparkline = last7Days.map(d => Number(d.benefice_net) || 0);
 
   return (
     <NotificationProvider>
@@ -104,22 +103,22 @@ export default function OwnerDashboardPage() {
           />
           <DashboardKpi
             title="🚨 Ruptures"
-            value={data.outOfStockCount}
+            value={data.outOfStockCount || 0}
             valueColor="text-red-600"
           />
           <DashboardKpi
             title="💵 Total perçu en USD"
-            value={`$${data.total_usd.toLocaleString()}`}
+            value={`$${(data.total_usd || 0).toLocaleString()}`}
             valueColor="text-blue-600"
           />
           <DashboardKpi
             title="💵 Total perçu en CDF"
-            value={`${data.total_cdf.toLocaleString()} FC`}
+            value={`${(data.total_cdf || 0).toLocaleString()} FC`}
             valueColor="text-green-600"
           />
         </div>
 
-        <SalesChart topProducts={data.topProducts} />
+        <SalesChart topProducts={data.topProducts || []} />
       </div>
     </NotificationProvider>
   );

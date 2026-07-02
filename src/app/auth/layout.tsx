@@ -1,4 +1,6 @@
 import React from 'react';
+import { Toaster } from 'react-hot-toast'
+
 
 export default function AuthLayout({
   children,
@@ -14,6 +16,7 @@ export default function AuthLayout({
       <main className="w-full flex justify-center items-center">
         {children}
       </main>
+      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
     </div>
   );
 }
