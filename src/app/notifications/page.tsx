@@ -7,16 +7,16 @@ export default async function NotificationsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   
-  // Modification : ajout de boutique_id dans la sélection
+    // Modification : ajout de boutique_id dans la sélection
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role, boutique_id')
+    .select('full_name, role, boutique_id, exchange_rate')
     .eq('id', user?.id)
     .single();
 
   const role = (profile?.role as 'owner' | 'employee') || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
-  const currentRate = profile?.exchange_rate ?? 2850.00;
+  const currentRate = profile?.exchange_rate ?? 2850.0;
 
   // Récupération dynamique du taux de change depuis la table 'boutiques'
   let exchangeRate = 0;
