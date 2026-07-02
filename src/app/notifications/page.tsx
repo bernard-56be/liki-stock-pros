@@ -21,7 +21,7 @@ export default async function NotificationsPage() {
       role={role}
       userName={userName}
       userAvatar={null}
-      currentRate={currentRate}  // ← AJOUTÉ
+      currentRate={currentRate}
     >
       <div className="p-4 md:p-8">
         <div className="max-w-4xl mx-auto">
