@@ -18,22 +18,23 @@ export const useMenu = () => {
   return ctx;
 };
 
+interface DashboardClientLayoutProps {
+  children: ReactNode;
+  role: DashboardRole;
+  userName: string;
+  userAvatar: string | null;
+  currentRate: number;
+}
+
 export function DashboardClientLayout({
   children,
   role,
   userName,
   userAvatar,
   currentRate,
-}: {
-  children: ReactNode;
-  role: DashboardRole;
-  userName: string;
-  userAvatar: string | null;
-  currentRate: number;
-}) {
+}: DashboardClientLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Stabilisation des fonctions pour éviter les fermetures intempestives
   const toggleMenu = useCallback(() => setIsMenuOpen((v) => !v), []);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
@@ -50,5 +51,3 @@ export function DashboardClientLayout({
     </MenuContext.Provider>
   );
 }
-
-  

@@ -8,18 +8,21 @@ import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 interface HeaderProps {
   userName: string;
   userAvatar: string | null;
-  currentRate: number; // Retrait du '?' (obligatoire maintenant)
+  currentRate: number;
 }
 
 export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
   const { toggleMenu } = useMenu();
 
-  // Formatage local propre du taux (ex: 2 850)
-  const formattedRate = new Intl.NumberFormat('fr-FR').format(currentRate);
+  const isValidRate = typeof currentRate === 'number' && currentRate > 0;
+  const formattedRate = isValidRate 
+    ? new Intl.NumberFormat('fr-FR').format(currentRate) 
+    : "---";
 
   return (
     <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur-md shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        
         {/* Gauche : bouton menu (mobile) + logo */}
         <div className="flex items-center gap-2">
           <button
@@ -36,16 +39,24 @@ export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
         <div className="flex items-center gap-3">
           
           {/* Pastille visuelle dynamique */}
-          <div className="mr-2 inline-flex items-center gap-1.5 rounded-full border border-purple-100 bg-purple-50/60 px-3 py-1 text-xs font-semibold text-purple-700 backdrop-blur-sm shadow-sm">
+          <div className={`mr-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-sm shadow-sm transition-colors ${
+            isValidRate 
+              ? 'border-purple-100 bg-purple-50/60 text-purple-700' 
+              : 'border-gray-100 bg-gray-50 text-gray-500'
+          }`}>
             <span className="relative flex h-1.5 w-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-purple-600"></span>
+              {isValidRate && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+              )}
+              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${isValidRate ? 'bg-purple-600' : 'bg-gray-400'}`}></span>
             </span>
             <div className="flex items-center gap-0.5">
               <span className="text-gray-500 font-normal">Taux :</span>
               <span className="font-bold text-purple-950">1 $</span>
               <span className="text-purple-400 font-normal">=</span>
-              <span className="font-bold text-purple-950">{formattedRate} FC</span>
+              <span className={`font-bold ${isValidRate ? 'text-purple-950' : 'text-gray-400'}`}>
+                {formattedRate} FC
+              </span>
             </div>
           </div>
 
@@ -63,6 +74,7 @@ export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
           >
             <Settings className="h-5 w-5" />
           </Link>
+
           <div className="flex items-center gap-2 pl-2">
             {userAvatar ? (
               <Image
