@@ -15,7 +15,7 @@ export default async function NotificationsPage() {
   const userName = profile?.full_name || 'Utilisateur'
 
   return (
-    <DashboardClientLayout role={role} userName={userName} userAvatar={null}>
+    <DashboardClientLayout role={role} userName={userName} userAvatar={null} >
       <div className="p-4 md:p-8">
         <div className="max-w-3xl mx-auto">
           <NotificationsList />
