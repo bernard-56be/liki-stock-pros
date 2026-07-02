@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { getUnreadNotifications, markAllNotificationsAsRead } from '@/lib/actions/notifications'
 import { requestNotificationPermission } from '@/lib/actions/client-notifications'
-import { Bell, CheckCheck, AlertCircle, AlertTriangle, CheckCircle, Info } from 'lucide-react'
+import { Bell, CheckCheck, AlertCircle, AlertTriangle, CheckCircle, Info, BellOff } from 'lucide-react'
 
 type Notification = {
   id: string
@@ -44,7 +44,7 @@ export default function NotificationsList() {
   }
 
   const getIcon = (type: string) => {
-    const className = "w-5 h-5"
+    const className = "w-5 h-5 flex-shrink-0"
     switch (type) {
       case 'danger': return <AlertCircle className={`${className} text-red-500`} />
       case 'warning': return <AlertTriangle className={`${className} text-amber-500`} />
@@ -55,10 +55,10 @@ export default function NotificationsList() {
 
   const getCardStyle = (type: string) => {
     switch (type) {
-      case 'danger': return 'border-l-red-500 bg-red-50/30'
-      case 'warning': return 'border-l-amber-500 bg-amber-50/30'
-      case 'success': return 'border-l-green-500 bg-green-50/30'
-      default: return 'border-l-blue-500 bg-blue-50/30'
+      case 'danger': return 'border-l-4 border-l-red-500 bg-red-50/50 hover:bg-red-50/70'
+      case 'warning': return 'border-l-4 border-l-amber-500 bg-amber-50/50 hover:bg-amber-50/70'
+      case 'success': return 'border-l-4 border-l-green-500 bg-green-50/50 hover:bg-green-50/70'
+      default: return 'border-l-4 border-l-blue-500 bg-blue-50/50 hover:bg-blue-50/70'
     }
   }
 
@@ -76,17 +76,22 @@ export default function NotificationsList() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* En-tête */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gray-900 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center shadow-sm">
             <Bell className="w-5 h-5 text-white" />
           </div>
-          <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
+            <p className="text-xs text-gray-400">
+              {notifications.length} notification{notifications.length > 1 ? 's' : ''} non lue{notifications.length > 1 ? 's' : ''}
+            </p>
+          </div>
         </div>
         {notifications.length > 0 && (
           <button
             onClick={handleMarkAllAsRead}
-            className="flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900 transition"
+            className="flex items-center gap-2 text-sm font-medium text-blue-600 hover:text-blue-800 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-50"
           >
             <CheckCheck className="w-4 h-4" />
             Tout marquer comme lu
@@ -98,29 +103,30 @@ export default function NotificationsList() {
       {notifications.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-50 flex items-center justify-center">
-            <Bell className="w-8 h-8 text-gray-300" />
+            <BellOff className="w-8 h-8 text-gray-300" />
           </div>
-          <h3 className="text-base font-semibold text-gray-800 mb-1">Aucune notification</h3>
+          <h3 className="text-base font-semibold text-gray-800 mb-1">Tout est calme</h3>
           <p className="text-sm text-gray-500">
-            Les alertes apparaîtront ici automatiquement.
+            Aucune nouvelle notification pour le moment.
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {notifications.map((notif) => (
             <div
               key={notif.id}
-              className={`border-l-4 rounded-xl p-4 ${getCardStyle(notif.type)}`}
+              className={`rounded-xl p-4 transition-all duration-200 ${getCardStyle(notif.type)}`}
             >
               <div className="flex items-start gap-3">
                 <div className="mt-0.5">{getIcon(notif.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{notif.title}</p>
-                  <p className="text-sm text-gray-600 mt-0.5">{notif.message}</p>
-                  <p className="text-xs text-gray-400 mt-2">
+                  <p className="text-sm font-semibold text-gray-900">{notif.title}</p>
+                  <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">{notif.message}</p>
+                  <p className="text-xs text-gray-400 mt-2 font-medium">
                     {new Date(notif.created_at).toLocaleString('fr-FR', {
                       day: 'numeric',
                       month: 'short',
+                      year: 'numeric',
                       hour: '2-digit',
                       minute: '2-digit'
                     })}
