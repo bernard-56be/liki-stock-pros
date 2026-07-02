@@ -24,6 +24,7 @@ interface DashboardClientLayoutProps {
   role: DashboardRole;
   userName: string;
   userAvatar: string | null;
+  currentRate: number;
   currentRate: number; // Taux de change injecté depuis le Layout serveur
 }
 
@@ -36,13 +37,13 @@ export function DashboardClientLayout({
 }: DashboardClientLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
-  // Stabilisation des fonctions pour éviter les fermetures intempestives
   const toggleMenu = useCallback(() => setIsMenuOpen((v) => !v), []);
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
   return (
     <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
       <div className="flex min-h-screen flex-col bg-gray-100 w-full">
+        <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
         {/* currentRate est ici transmis au Header */}
         <Header 
           userName={userName} 
