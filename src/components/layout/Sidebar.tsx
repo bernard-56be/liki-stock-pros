@@ -1,9 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { LogOut } from 'lucide-react';
 import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
+import { createClient } from '@/lib/supabase/client';
 
 export type DashboardRole = 'owner' | 'employee';
 
@@ -14,8 +16,7 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
   { href: '/dashboard/owner/validation', label: 'Validation' },
   { href: '/notifications', label: 'Notifications' },
-  { href: '/settings', label: 'Paramètres' }, 
-  
+  { href: '/settings', label: 'Paramètres' },
 ];
 
 const employeeNav: NavItem[] = [
@@ -30,8 +31,10 @@ function navForRole(role: DashboardRole): NavItem[] {
 
 export function Sidebar({ role }: { role: DashboardRole }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { isMenuOpen, closeMenu } = useMenu();
   const items = navForRole(role);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Ferme le menu quand on change de route
   useEffect(() => {
@@ -47,6 +50,23 @@ export function Sidebar({ role }: { role: DashboardRole }) {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [isMenuOpen, closeMenu]);
+
+  // Déconnexion : invalide la session et force le refresh du cache
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+      // Forcer la redirection pour réévaluer le middleware d'authentification
+      router.push('/auth/login');
+      router.refresh();
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -93,9 +113,20 @@ export function Sidebar({ role }: { role: DashboardRole }) {
           })}
         </nav>
 
-        <p className="mt-4 border-t border-gray-200 pt-3 text-xs text-gray-600 md:border-white/30">
-          {role === 'owner' ? 'Espace propriétaire' : 'Espace employé'}
-        </p>
+        {/* Pied de sidebar : rôle + déconnexion */}
+        <div className="mt-4 border-t border-gray-200 pt-3 space-y-2 md:border-white/30">
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="flex w-full items-center gap-2 rounded-xl px-2 py-4 text-sm font-semibold text-gray-700 transition-colors hover:bg-white/50 disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            {isLoggingOut ? 'Déconnexion...' : 'Se déconnecter'}
+          </button>
+          <p className="text-xs text-gray-400">
+            {role === 'owner' ? 'Espace propriétaire' : 'Espace employé'}
+          </p>
+        </div>
       </aside>
     </>
   );
