@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { LogOut, LayoutDashboard, Package, Users, Bell, Settings, History } from 'lucide-react';
+import { LogOut, LayoutDashboard, Package, Users, Bell, Settings, History, UserCog } from 'lucide-react';
 import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 import { createClient } from '@/lib/supabase/client';
 
@@ -20,15 +20,15 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/inventaire', label: 'Inventaire', icon: <Package className="h-4 w-4" /> },
   { href: '/dashboard/owner/validation', label: 'Validation', icon: <Users className="h-4 w-4" /> },
   { href: '/dashboard/owner/historique', label: 'Historique', icon: <History className="h-4 w-4" /> },
-  { href: '/dashboard/manage-employees', label: 'Gestion des employés' },
+  { href: '/dashboard/manage-employees', label: 'Gestion des employés', icon: <UserCog className="h-4 w-4" /> },
   { href: '/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { href: '/settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ];
 
 const employeeNav: NavItem[] = [
-  { href: '/dashboard/employee/ventes', label: 'Ventes' },
-  { href: '/notifications', label: 'Notifications' },
-  { href: '/settings', label: 'Paramètres' },
+  { href: '/dashboard/employee/ventes', label: 'Ventes', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+  { href: '/settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ];
 
 function navForRole(role: DashboardRole): NavItem[] {
