@@ -16,7 +16,6 @@ export interface DailyReportData {
     produits_vendus: number
     ca_cdf: number
     ca_usd: number
-    remises: number
   }[]
   topProducts: {
     product_name: string
@@ -105,7 +104,6 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
       let produits_vendus = 0
       let ca_cdf = 0
       let ca_usd = 0
-      let remises = 0
 
       if (empSales) {
         for (const sale of empSales) {
@@ -122,15 +120,6 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
               } else {
                 ca_usd += item.quantity * item.unit_price
               }
-
-              const { data: product } = await supabase
-                .from('products')
-                .select('sale_price')
-                .eq('id', item.product_id)
-                .single()
-              if (product && item.unit_price < product.sale_price) {
-                remises++
-              }
             }
           }
         }
@@ -141,7 +130,6 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
         produits_vendus,
         ca_cdf,
         ca_usd,
-        remises,
       })
     }
   }
@@ -225,45 +213,40 @@ export async function generateDailyReportPdf(dateStr?: string): Promise<string> 
   y += 2 * cardHeight + 24
 
   // ---- Section Top 5 Produits ----
-  // ---- Section Top 5 Produits ----
-if (data.topProducts && data.topProducts.length > 0) {
-  y += 6
-  doc.setFontSize(14)
-  doc.setTextColor(30, 41, 59)
-  doc.setFont('helvetica', 'bold')
-  doc.text('Top 5 Produits Vendus', 10, y)
-  y += 10
-
-  const maxVendus = Math.max(...data.topProducts.map(p => p.total_vendus), 1)
-  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
-  const maxBarWidth = pageWidth - 90 // Limite stricte pour ne pas dépasser
-
-  data.topProducts.forEach((p, i) => {
-    const barWidth = Math.min((p.total_vendus / maxVendus) * maxBarWidth, maxBarWidth)
-    const color = colors[i] || '#3B82F6'
-
-    // Fond de la ligne
-    doc.setFillColor(248, 250, 252)
-    doc.roundedRect(10, y - 2, pageWidth - 20, 10, 3, 3, 'F')
-
-    // Nom du produit
-    doc.setFontSize(8)
+  if (data.topProducts && data.topProducts.length > 0) {
+    y += 6
+    doc.setFontSize(14)
     doc.setTextColor(30, 41, 59)
     doc.setFont('helvetica', 'bold')
-    doc.text(p.product_name.substring(0, 22), 14, y + 4)
+    doc.text('Top 5 Produits Vendus', 10, y)
+    y += 10
 
-    // Barre
-    doc.setFillColor(color)
-    doc.roundedRect(65, y, barWidth, 7, 2, 2, 'F')
+    const maxVendus = Math.max(...data.topProducts.map(p => p.total_vendus), 1)
+    const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+    const maxBarWidth = pageWidth - 90
 
-    // Valeur
-    doc.setFontSize(8)
-    doc.setFont('helvetica', 'bold')
-    doc.text(String(p.total_vendus), 65 + barWidth + 3, y + 4)
+    data.topProducts.forEach((p, i) => {
+      const barWidth = Math.min((p.total_vendus / maxVendus) * maxBarWidth, maxBarWidth)
+      const color = colors[i] || '#3B82F6'
 
-    y += 14
-  })
-}
+      doc.setFillColor(248, 250, 252)
+      doc.roundedRect(10, y - 2, pageWidth - 20, 10, 3, 3, 'F')
+
+      doc.setFontSize(8)
+      doc.setTextColor(30, 41, 59)
+      doc.setFont('helvetica', 'bold')
+      doc.text(p.product_name.substring(0, 22), 14, y + 4)
+
+      doc.setFillColor(color)
+      doc.roundedRect(65, y, barWidth, 7, 2, 2, 'F')
+
+      doc.setFontSize(8)
+      doc.setFont('helvetica', 'bold')
+      doc.text(String(p.total_vendus), 65 + barWidth + 3, y + 4)
+
+      y += 14
+    })
+  }
 
   // ---- Section Détail par Employé ----
   if (data.par_employe.length > 0) {
@@ -274,8 +257,8 @@ if (data.topProducts && data.topProducts.length > 0) {
     doc.text('Detail par Employe', 10, y)
     y += 8
 
-    const headers = ['Employe', 'Produits', 'CA Genere', 'Remises']
-    const colWidths = [60, 25, 60, 35]
+    const headers = ['Employe', 'Produits', 'CA Genere']
+    const colWidths = [65, 30, 85]
     const tableStartX = 10
 
     doc.setFillColor(30, 41, 59)
@@ -292,7 +275,7 @@ if (data.topProducts && data.topProducts.length > 0) {
     y += 11
 
     doc.setFont('helvetica', 'normal')
-    let totalProduits = 0, totalRemises = 0
+    let totalProduits = 0
 
     data.par_employe.forEach((emp, i) => {
       if (i % 2 === 0) {
@@ -308,12 +291,9 @@ if (data.topProducts && data.topProducts.length > 0) {
       doc.text(String(emp.produits_vendus), rowX, y + 5.5)
       rowX += colWidths[1]
       const caText = `${emp.ca_cdf.toLocaleString('fr-FR').replace(/\s/g, ' ')} FC / $ ${emp.ca_usd.toFixed(2)}`
-      doc.text(caText.substring(0, 30), rowX, y + 5.5)
-      rowX += colWidths[2]
-      doc.text(String(emp.remises), rowX, y + 5.5)
+      doc.text(caText.substring(0, 32), rowX, y + 5.5)
 
       totalProduits += emp.produits_vendus
-      totalRemises += emp.remises
       y += 8
     })
 
@@ -325,8 +305,7 @@ if (data.topProducts && data.topProducts.length > 0) {
     doc.text('TOTAL', tableStartX + 3, y + 5.5)
     doc.text(String(totalProduits), tableStartX + 3 + colWidths[0], y + 5.5)
     const totalCA = `$ ${data.chiffre_affaires.toFixed(2)} / ${(data.chiffre_affaires * rate).toLocaleString('fr-FR').replace(/\s/g, ' ')} FC`
-    doc.text(totalCA.substring(0, 30), tableStartX + 3 + colWidths[0] + colWidths[1], y + 5.5)
-    doc.text(String(totalRemises), tableStartX + 3 + colWidths[0] + colWidths[1] + colWidths[2], y + 5.5)
+    doc.text(totalCA.substring(0, 32), tableStartX + 3 + colWidths[0] + colWidths[1], y + 5.5)
   }
 
   // Pied de page
