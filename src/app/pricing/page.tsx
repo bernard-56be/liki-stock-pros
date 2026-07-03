@@ -14,6 +14,21 @@ const plans = [
 export default function PricingPage() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [operator, setOperator] = useState('M-Pesa'); // Simulation choix opérateur
+
+  const handlePayment = async (plan: string) => {
+    setIsProcessing(true);
+    
+    // Le toast loading est déclenché avant l'appel
+    const toastId = toast.loading("Traitement Mobile Money (3s)...");
+    
+    const result = await simulateMobileMoneyPayment(plan);
+    
+    setIsProcessing(false);
+    
+    // On ferme le toast de chargement et on affiche le résultat
+    toast.dismiss(toastId);
+    
   const [operator, setOperator] = useState('M-Pesa');
 
   const handlePayment = async (plan: string) => {
@@ -30,6 +45,16 @@ export default function PricingPage() {
   };
 
   return (
+    <div className="p-8">
+      <h1 className="text-2xl font-bold mb-6">Choisir votre abonnement</h1>
+      
+      {/* Sélecteur d'opérateur */}
+      <div className="mb-6">
+        <label className="block mb-2">Choisir votre opérateur :</label>
+        <select onChange={(e) => setOperator(e.target.value)} className="border p-2 rounded">
+          <option>M-Pesa</option>
+          <option>Airtel</option>
+          <option>Orange</option>
     <div className="p-8 max-w-6xl mx-auto">
       <h1 className="text-2xl font-bold mb-6">Choisir votre abonnement</h1>
 
@@ -53,6 +78,15 @@ export default function PricingPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {plans.map((plan) => (
+          <div key={plan.id} className="border p-4 rounded shadow">
+            <h3 className="font-bold">{plan.name}</h3>
+            <p>{plan.price}</p>
+            <button 
+              disabled={isProcessing || !plan.active}
+              onClick={() => handlePayment(plan.id)}
+              className="w-full bg-blue-600 text-white mt-4 p-2 rounded disabled:bg-gray-400"
+            >
+              {plan.active ? 'Payer' : 'Bientôt'}
           <div key={plan.id} className="border p-4 rounded shadow hover:shadow-lg transition-shadow">
             <h3 className="font-bold text-lg">{plan.name}</h3>
             <p className="text-gray-600">{plan.duration}</p>

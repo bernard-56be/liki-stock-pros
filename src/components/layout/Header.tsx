@@ -8,6 +8,7 @@ import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 interface HeaderProps {
   userName: string;
   userAvatar: string | null;
+  currentRate: number;
   currentRate: number; 
 }
 
