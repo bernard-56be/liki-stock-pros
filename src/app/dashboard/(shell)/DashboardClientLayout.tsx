@@ -1,3 +1,4 @@
+// app/dashboard/(shell)/DashboardClientLayout.tsx
 'use client';
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
@@ -18,14 +19,13 @@ export const useMenu = () => {
   return ctx;
 };
 
-// Ajout du type pour les props
 interface DashboardClientLayoutProps {
   children: ReactNode;
   role: DashboardRole;
   userName: string;
   userAvatar: string | null;
   currentRate: number;
-  currentRate: number; // Taux de change injecté depuis le Layout serveur
+  shopCode?: string | null; // ← nouvelle prop
 }
 
 export function DashboardClientLayout({
@@ -34,6 +34,7 @@ export function DashboardClientLayout({
   userName,
   userAvatar,
   currentRate,
+  shopCode, // ← réception
 }: DashboardClientLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -44,15 +45,8 @@ export function DashboardClientLayout({
     <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
       <div className="flex min-h-screen flex-col bg-gray-100 w-full">
         <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
-        {/* currentRate est ici transmis au Header */}
-        <Header 
-          userName={userName} 
-          userAvatar={userAvatar} 
-          currentRate={currentRate} 
-        />
-        
         <div className="flex flex-1 flex-col md:flex-row">
-          <Sidebar role={role} />
+          <Sidebar role={role} shopCode={shopCode} /> {/* ← transmission */}
           <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
         </div>
       </div>
