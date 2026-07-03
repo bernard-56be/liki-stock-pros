@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { fetchDashboardData, type DashboardData } from "@/lib/actions/dashboardService";
 import DashboardKpi from "@/components/DashboardKpi";
 import SalesChart from "@/components/SalesChart";
-import NotificationBell from "@/components/shared/NotificationBell";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { generateDailyReportPdf } from '@/lib/actions/reports';
 
@@ -78,7 +77,6 @@ export default function OwnerDashboardPage() {
             >
               📋 Télécharger le rapport
             </button>
-            <NotificationBell />
           </div>
         </div>
 
