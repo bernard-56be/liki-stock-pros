@@ -67,6 +67,8 @@ export default async function DashboardShellLayout({
         role={role}
         userName={userName}
         userAvatar={userAvatar}
+        currentRate={exchangeRate}
+        shopCode={shopCode}
       >
         {children}
       </DashboardClientLayout>
