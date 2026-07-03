@@ -3,21 +3,26 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, LayoutDashboard, Package, Users, Bell, Settings, History } from 'lucide-react';
 import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
 import { createClient } from '@/lib/supabase/client';
 
 export type DashboardRole = 'owner' | 'employee';
 
-type NavItem = { href: string; label: string };
+type NavItem = { 
+  href: string; 
+  label: string; 
+  icon?: React.ReactNode;
+};
 
 const ownerNav: NavItem[] = [
-  { href: '/dashboard/owner/dashboard', label: 'Accueil' },
-  { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
-  { href: '/dashboard/owner/validation', label: 'Validation' },
+  { href: '/dashboard/owner/dashboard', label: 'Accueil', icon: <LayoutDashboard className="h-4 w-4" /> },
+  { href: '/dashboard/owner/inventaire', label: 'Inventaire', icon: <Package className="h-4 w-4" /> },
+  { href: '/dashboard/owner/validation', label: 'Validation', icon: <Users className="h-4 w-4" /> },
+  { href: '/dashboard/owner/historique', label: 'Historique', icon: <History className="h-4 w-4" /> },
   { href: '/dashboard/manage-employees', label: 'Gestion des employés' },
-  { href: '/notifications', label: 'Notifications' },
-  { href: '/settings', label: 'Paramètres' },
+  { href: '/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+  { href: '/settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ];
 
 const employeeNav: NavItem[] = [
@@ -73,7 +78,6 @@ export function Sidebar({
     }
   };
 
-  // Détermination du label et de la valeur affichée selon le rôle
   const isOwner = role === 'owner';
   const label = isOwner ? 'Code' : 'Boutique';
   const displayValue = isOwner
@@ -117,12 +121,13 @@ export function Sidebar({
                 key={item.href}
                 href={item.href}
                 onClick={closeMenu}
-                className={`rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors ${
                   active
                     ? 'bg-purple-700 text-white shadow-md'
                     : 'text-gray-800 hover:bg-white/50'
                 }`}
               >
+                {item.icon}
                 {item.label}
               </Link>
             );

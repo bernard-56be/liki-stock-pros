@@ -1,12 +1,11 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardClientLayout } from '@/app/dashboard/(shell)/DashboardClientLayout';
-import SettingsClient from './SettingsClient';
-import SubscriptionStatus from '@/components/shared/SubscriptionStatus';
-import UpgradeSubscription from '@/components/shared/UpgradeSubscription';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Settings, Users, CreditCard, Shield, Bell, Palette } from 'lucide-react';
+import { User, Shield, Store, CreditCard } from 'lucide-react';
+import SettingsClient from './SettingsClient';
+import SubscriptionStatus from '@/components/shared/SubscriptionStatus';
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -16,7 +15,6 @@ export default async function SettingsPage() {
     redirect('/login');
   }
 
-  // Récupérer le profil
   const { data: profile } = await supabase
     .from('profiles')
     .select('*')
@@ -26,41 +24,28 @@ export default async function SettingsPage() {
   const role = user.user_metadata?.role || profile?.role || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
   const avatar = profile?.avatar_url || null;
-  
-  // Valeurs par défaut sécurisées pour la devise
+  const exchangeRate = profile?.exchange_rate ?? 2200.00;
   const defaultCurrency = profile?.default_currency ?? 'USD';
 
   let boutiqueName = '';
-  // Modification : On va chercher dynamiquement la boutique et son taux de change réel
-  let exchangeRate = 2850.00;
-  let shopCode: string | null = null;
-  let shopName: string | null = null;
-  // Initialisation des variables d'abonnement avec des valeurs par défaut pour TypeScript
   let subscription = 'BRONZE';
   let max_owners = 1;
-  let max_employees = 2;
+  let max_employees = 1;
 
-  // On cherche la boutique soit par son ID (si l'utilisateur y est rattaché) soit par l'owner_id (pour le propriétaire EXAUCE)
-  // Ajout de la sélection des colonnes d'abonnement pour corriger les erreurs de l'image image_a51a40.png
-  const { data: boutiqueData } = await supabase
-    .from('boutiques')
-    .select('id, name, exchange_rate, subscription, max_owners, max_employees, boutique_code, name')
-    .or(`id.eq.${profile?.boutique_id},owner_id.eq.${user.id}`)
-    .maybeSingle();
+  if (role === 'owner' && profile?.boutique_id) {
+    const { data: boutique } = await supabase
+      .from('boutiques')
+      .select('name, subscription, max_owners, max_employees')
+      .eq('id', profile.boutique_id)
+      .single();
 
-  if (boutiqueData) {
-    exchangeRate = boutiqueData.exchange_rate ?? 2850.00;
-    shopName = boutiqueData.name ?? null;
-    subscription = boutiqueData.subscription ?? 'BRONZE';
-    max_owners = boutiqueData.max_owners ?? 1;
-    max_employees = boutiqueData.max_employees ?? 2;
-    shopCode = boutiqueData.boutique_code ?? null;
-
-    // Si c'est un propriétaire, on récupère le vrai nom de sa boutique
-    if (role === 'owner') {
-      boutiqueName = boutiqueData.name || '';
-    }
+    boutiqueName = boutique?.name || '';
+    subscription = boutique?.subscription || 'BRONZE';
+    max_owners = boutique?.max_owners || 1;
+    max_employees = boutique?.max_employees || 1;
   }
+
+  const isOwner = role === 'owner';
 
   return (
     <DashboardClientLayout
@@ -68,84 +53,58 @@ export default async function SettingsPage() {
       userName={userName}
       userAvatar={avatar}
       currentRate={exchangeRate}
-      shopCode={shopCode}
-      shopName={shopName}
     >
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
-        {/* En-tête */}
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">⚙️ Paramètres</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Gérez votre compte, votre abonnement et les préférences de votre boutique
+              Gérez votre compte et vos préférences
             </p>
           </div>
         </div>
 
-        {/* Onglets principaux */}
-        <Tabs defaultValue="subscription" className="w-full">
+        <Tabs defaultValue="profile" className="w-full">
           <TabsList className="grid w-full grid-cols-4 mb-8">
-            <TabsTrigger value="subscription" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              <span className="hidden sm:inline">Abonnement</span>
-            </TabsTrigger>
+            {/* 1. Informations personnelles (tous) */}
             <TabsTrigger value="profile" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
+              <User className="h-4 w-4" />
               <span className="hidden sm:inline">Profil</span>
             </TabsTrigger>
-            <TabsTrigger value="boutique" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              <span className="hidden sm:inline">Boutique</span>
-            </TabsTrigger>
+
+            {/* 2. Mon Abonnement (propriétaire uniquement) */}
+            {isOwner && (
+              <TabsTrigger value="subscription" className="flex items-center gap-2">
+                <CreditCard className="h-4 w-4" />
+                <span className="hidden sm:inline">Abonnement</span>
+              </TabsTrigger>
+            )}
+
+            {/* 3. Configuration boutique (propriétaire uniquement) */}
+            {isOwner && (
+              <TabsTrigger value="boutique" className="flex items-center gap-2">
+                <Store className="h-4 w-4" />
+                <span className="hidden sm:inline">Boutique</span>
+              </TabsTrigger>
+            )}
+
+            {/* 4. Sécurité & mot de passe (tous) */}
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Shield className="h-4 w-4" />
               <span className="hidden sm:inline">Sécurité</span>
             </TabsTrigger>
           </TabsList>
 
-          {/* --- Onglet Abonnement --- */}
-          <TabsContent value="subscription" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-blue-600" />
-                  Mon Abonnement
-                </CardTitle>
-                <CardDescription>
-                  Gérez votre forfait et vos limites d'utilisateurs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <SubscriptionStatus />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5 text-green-600" />
-                  Changer de forfait
-                </CardTitle>
-                <CardDescription>
-                  Passez à un forfait supérieur pour débloquer plus de fonctionnalités
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <UpgradeSubscription />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           {/* --- Onglet Profil --- */}
           <TabsContent value="profile">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Users className="h-5 w-5 text-blue-600" />
-                  Mon Profil
+                  <User className="h-5 w-5 text-blue-600" />
+                  Informations personnelles
                 </CardTitle>
                 <CardDescription>
-                  Grérez vos informations personnelles
+                  Gérez vos informations personnelles
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -160,56 +119,78 @@ export default async function SettingsPage() {
             </Card>
           </TabsContent>
 
-          {/* --- Onglet Boutique --- */}
-          <TabsContent value="boutique">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5 text-purple-600" />
-                  Informations de la Boutique
-                </CardTitle>
-                <CardDescription>
-                  Gérez les paramètres de votre boutique
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <p className="text-sm text-gray-500">Nom de la boutique</p>
-                    <p className="font-medium text-gray-900">{boutiqueName || 'Non définie'}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <p className="text-sm text-gray-500">Plan actuel</p>
-                    <p className="font-medium text-gray-900">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        subscription === 'BRONZE' ? 'bg-amber-100 text-amber-800' :
-                        subscription === 'SILVER' ? 'bg-blue-100 text-blue-800' :
-                        'bg-purple-100 text-purple-800'
-                      }`}>
-                        {subscription}
-                      </span>
-                    </p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <p className="text-sm text-gray-500">Propriétaires / Associés</p>
-                    <p className="font-medium text-gray-900">1 / {max_owners}</p>
-                  </div>
-                  <div className="p-4 bg-gray-50 rounded-lg border">
-                    <p className="text-sm text-gray-500">Employés</p>
-                    <p className="font-medium text-gray-900">0 / {max_employees}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+          {/* --- Onglet Mon Abonnement --- */}
+          {isOwner && (
+            <TabsContent value="subscription">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CreditCard className="h-5 w-5 text-blue-600" />
+                    Mon Abonnement
+                  </CardTitle>
+                  <CardDescription>
+                    Consultez votre forfait actuel et découvrez les offres disponibles
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <SubscriptionStatus />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
-          {/* --- Onglet Sécurité --- */}
+          {/* --- Onglet Configuration boutique --- */}
+          {isOwner && (
+            <TabsContent value="boutique">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Store className="h-5 w-5 text-purple-600" />
+                    Configuration boutique
+                  </CardTitle>
+                  <CardDescription>
+                    Gérez les paramètres de votre boutique
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <p className="text-sm text-gray-500">Nom de la boutique</p>
+                      <p className="font-medium text-gray-900">{boutiqueName || 'Non définie'}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <p className="text-sm text-gray-500">Plan actuel</p>
+                      <p className="font-medium text-gray-900">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          subscription === 'BRONZE' ? 'bg-amber-100 text-amber-800' :
+                          subscription === 'SILVER' ? 'bg-blue-100 text-blue-800' :
+                          'bg-purple-100 text-purple-800'
+                        }`}>
+                          {subscription}
+                        </span>
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <p className="text-sm text-gray-500">Propriétaires / Associés</p>
+                      <p className="font-medium text-gray-900">1 / {max_owners}</p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg border">
+                      <p className="text-sm text-gray-500">Employés</p>
+                      <p className="font-medium text-gray-900">0 / {max_employees}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* --- Onglet Sécurité & mot de passe --- */}
           <TabsContent value="security">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-red-600" />
-                  Sécurité
+                  Sécurité & mot de passe
                 </CardTitle>
                 <CardDescription>
                   Gérez la sécurité de votre compte
@@ -218,12 +199,12 @@ export default async function SettingsPage() {
               <CardContent className="space-y-4">
                 <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-sm text-yellow-700">
-                    🔐 Zone de sécurité - Gestion du mot de passe et des sessions
+                    🔐 Changez votre mot de passe régulièrement pour sécuriser votre compte.
                   </p>
                 </div>
                 <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-700">
-                    ⚠️ Zone dangereuse - Suppression de compte (à implémenter)
+                    ⚠️ Suppression de compte (bientôt disponible)
                   </p>
                 </div>
               </CardContent>

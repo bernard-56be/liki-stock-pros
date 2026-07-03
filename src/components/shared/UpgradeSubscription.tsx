@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Crown, Users, Building, Sparkles, Check, ArrowRight } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Users, Building, Check, ArrowRight, Sparkles } from 'lucide-react';
 
-type Plan = {
+interface Plan {
   id: string;
   name: string;
   label: string;
@@ -16,8 +17,7 @@ type Plan = {
   price: number;
   features: string[];
   popular?: boolean;
-  comingSoon?: boolean;
-};
+}
 
 const PLANS: Plan[] = [
   {
@@ -36,7 +36,7 @@ const PLANS: Plan[] = [
     max_owners: 2,
     max_employees: 4,
     price: 15000,
-    features: ['2 Propriétaires', '4 Employés', 'Tout Bronze', 'Rapports PDF', 'Support prioritaire'],
+    features: ['2 Propriétaires', '4 Employés', 'Rapports PDF', 'Support prioritaire'],
     popular: true,
   },
   {
@@ -46,145 +46,132 @@ const PLANS: Plan[] = [
     max_owners: 2,
     max_employees: 10,
     price: 30000,
-    features: ['2 Propriétaires', '10 Employés', 'Tout Silver', 'Multi-boutiques', 'Support 24/7'],
-  },
-  {
-    id: 'PME',
-    name: 'PME',
-    label: 'Multi-boutiques',
-    max_owners: 5,
-    max_employees: 50,
-    price: 50000,
-    features: ['5 Propriétaires', '50 Employés', 'Gestion multi-boutiques', 'API personnalisée'],
-    comingSoon: true,
+    features: ['2 Propriétaires', '10 Employés', 'Multi-boutiques', 'Support prioritaire', 'Rapports PDF'],
   },
 ];
 
 export default function UpgradeSubscription() {
+  const router = useRouter();
   const [currentPlan, setCurrentPlan] = useState<string>('BRONZE');
-  const [loading, setLoading] = useState(true);
-  const [upgrading, setUpgrading] = useState<string | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [currentCounts, setCurrentCounts] = useState({ owners: 0, employees: 0 });
   const supabase = createClient();
 
   useEffect(() => {
+    const fetchCurrentPlan = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setError('Utilisateur non authentifié');
+          setLoading(false);
+          return;
+        }
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('boutique_id')
+          .eq('id', user.id)
+          .single();
+
+        if (!profile?.boutique_id) {
+          setError('Aucune boutique associée à votre compte');
+          setLoading(false);
+          return;
+        }
+
+        const { data: shop } = await supabase
+          .from('boutiques')
+          .select('subscription, max_owners, max_employees')
+          .eq('id', profile.boutique_id)
+          .single();
+
+        // Si la boutique existe mais n'a pas les colonnes, on utilise les valeurs par défaut
+        setCurrentPlan(shop?.subscription || 'BRONZE');
+
+        // Compter les propriétaires et employés
+        const { count: ownersCount } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('boutique_id', profile.boutique_id)
+          .in('role', ['owner', 'associe'])
+          .eq('status', 'active');
+
+        const { count: employeesCount } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('boutique_id', profile.boutique_id)
+          .eq('role', 'employee')
+          .eq('status', 'active');
+
+        setCurrentCounts({
+          owners: ownersCount || 0,
+          employees: employeesCount || 0,
+        });
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Erreur de chargement des offres');
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCurrentPlan();
   }, []);
 
-  const fetchCurrentPlan = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Non authentifié');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('boutique_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.boutique_id) throw new Error('Aucune boutique associée');
-
-      const { data: shop } = await supabase
-        .from('boutiques')
-        .select('subscription')
-        .eq('id', profile.boutique_id)
-        .single();
-
-      setCurrentPlan(shop?.subscription || 'BRONZE');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUpgrade = async (planId: string) => {
-    if (planId === 'PME') {
-      setError('Offre Multi-boutiques bientôt disponible');
-      return;
-    }
-
-    setUpgrading(planId);
-    setError(null);
-    setSuccess(null);
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Non authentifié');
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('boutique_id')
-        .eq('id', user.id)
-        .single();
-
-      if (!profile?.boutique_id) throw new Error('Aucune boutique associée');
-
-      // Mettre à jour la boutique
-      const { error: updateError } = await supabase
-        .from('boutiques')
-        .update({ 
-          subscription: planId,
-          // Ajouter les colonnes si elles existent
-          // max_owners: PLANS.find(p => p.id === planId)?.max_owners,
-          // max_employees: PLANS.find(p => p.id === planId)?.max_employees,
-        })
-        .eq('id', profile.boutique_id);
-
-      if (updateError) throw updateError;
-
-      setCurrentPlan(planId);
-      setSuccess(`Passage à l'offre ${planId} effectué avec succès !`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur lors de l\'upgrade');
-    } finally {
-      setUpgrading(null);
-    }
+  const handleUpgrade = (planId: string) => {
+    router.push('/dashboard/settings?tab=subscription');
   };
 
   if (loading) {
-    return <div className="text-gray-500">Chargement des offres...</div>;
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-full border-2 border-gray-200 border-t-purple-500 animate-spin" />
+          <p className="text-sm text-gray-400 font-medium">Chargement des offres...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        ⚠️ {error}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      {error && (
-        <div className="p-3 bg-red-50 border border-red-300 text-red-700 rounded-lg">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="p-3 bg-green-50 border border-green-300 text-green-700 rounded-lg">
-          {success}
-        </div>
-      )}
+      {/* En-tête de la section */}
+      <div className="flex items-center gap-2 text-gray-600 text-sm">
+        <Sparkles className="h-4 w-4 text-purple-500" />
+        <span>Choisissez l'offre qui correspond à vos besoins</span>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {PLANS.map((plan) => {
           const isCurrent = currentPlan === plan.id;
-          const isUpgrading = upgrading === plan.id;
 
           return (
             <Card 
               key={plan.id} 
-              className={`relative ${plan.popular ? 'border-blue-500 shadow-lg' : ''} ${isCurrent ? 'border-green-500' : ''}`}
+              className={`relative transition-all duration-200 hover:shadow-lg ${
+                plan.popular ? 'border-purple-500 shadow-md' : ''
+              } ${
+                isCurrent ? 'border-green-500 bg-green-50/20' : ''
+              }`}
             >
               {plan.popular && (
-                <span className="absolute -top-2 -right-2 bg-blue-500 text-white text-xs font-bold px-3 py-1 rounded-full">
+                <span className="absolute -top-2 -right-2 bg-gradient-to-r from-purple-500 to-purple-700 text-white text-xs font-bold px-3 py-1 rounded-full z-10 shadow-sm">
                   Populaire
                 </span>
-              )}
-              {plan.comingSoon && (
-                <Badge className="absolute -top-2 -right-2 bg-gray-500 text-white">
-                  Bientôt
-                </Badge>
               )}
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-lg">{plan.name}</CardTitle>
                   {isCurrent && (
-                    <Badge className="bg-green-500 text-white">
+                    <Badge className="bg-green-500 text-white border-0">
                       <Check className="h-3 w-3 mr-1" /> Actif
                     </Badge>
                   )}
@@ -192,27 +179,40 @@ export default function UpgradeSubscription() {
                 <p className="text-sm text-gray-500">{plan.label}</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-gray-800">
                   {plan.price === 0 ? (
                     'Gratuit'
                   ) : (
                     `${plan.price.toLocaleString()} FC`
                   )}
-                  {plan.price > 0 && <span className="text-sm font-normal text-gray-500">/mois</span>}
+                  {plan.price > 0 && (
+                    <span className="text-sm font-normal text-gray-400">/mois</span>
+                  )}
                 </div>
 
-                <ul className="space-y-2 text-sm">
-                  <li className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-gray-400" />
-                    <span>{plan.max_owners} Propriétaire{plan.max_owners > 1 ? 's' : ''}</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Building className="h-4 w-4 text-gray-400" />
-                    <span>{plan.max_employees} Employé{plan.max_employees > 1 ? 's' : ''}</span>
-                  </li>
-                  {plan.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-center gap-2 text-gray-600">
-                      <Check className="h-3 w-3 text-green-500" />
+                <div className="border-t border-gray-100 pt-3 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-gray-400" /> Propriétaires
+                    </span>
+                    <span className="font-medium text-gray-700">
+                      {isCurrent ? currentCounts.owners : 0} / {plan.max_owners}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      <Building className="h-3.5 w-3.5 text-gray-400" /> Employés
+                    </span>
+                    <span className="font-medium text-gray-700">
+                      {isCurrent ? currentCounts.employees : 0} / {plan.max_employees}
+                    </span>
+                  </div>
+                </div>
+
+                <ul className="space-y-1.5 text-sm">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-center gap-2 text-gray-600">
+                      <Check className="h-3.5 w-3.5 text-green-500 flex-shrink-0" />
                       {feature}
                     </li>
                   ))}
@@ -220,15 +220,17 @@ export default function UpgradeSubscription() {
 
                 <Button
                   onClick={() => handleUpgrade(plan.id)}
-                  disabled={isCurrent || isUpgrading || plan.comingSoon}
-                  className={`w-full ${plan.comingSoon ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  disabled={isCurrent}
+                  className={`w-full transition-all ${
+                    isCurrent 
+                      ? 'bg-green-600 hover:bg-green-700 text-white' 
+                      : plan.popular 
+                        ? 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white'
+                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  }`}
                 >
                   {isCurrent ? (
-                    'Actuel'
-                  ) : isUpgrading ? (
-                    'Chargement...'
-                  ) : plan.comingSoon ? (
-                    'Bientôt disponible'
+                    '✅ Plan actuel'
                   ) : (
                     <>
                       Passer à {plan.name} <ArrowRight className="h-4 w-4 ml-1" />
