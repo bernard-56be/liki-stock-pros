@@ -12,10 +12,10 @@ export default async function ManageEmployeesPage() {
         </h1>
       </div>
 
-      {/* Conteneur principal (Même carte blanche avec ombre douce et angles arrondis) */}
+      {/* Conteneur principal avec ombre douce et angles arrondis */}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden min-h-75 flex flex-col justify-center">
         {employees.length === 0 ? (
-          /* État vide calqué sur le style de ton image_b34467.png */
+          /* État vide */
           <div className="p-12 flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-12 h-12 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
               <svg 
@@ -33,44 +33,62 @@ export default async function ManageEmployeesPage() {
             </p>
           </div>
         ) : (
-          /* Tableau des employés si des profils sont présents */
+          /* Tableau des employés */
           <div className="overflow-x-auto w-full align-middle">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 bg-slate-50/70">
-                  <th className="p-5 text-sm font-semibold text-[#4A5568] uppercase tracking-wider">
+                  <th className="py-4 px-6 text-xs font-bold text-[#4A5568] uppercase tracking-widest">
                     Nom complet
                   </th>
-                  <th className="p-5 text-sm font-semibold text-[#4A5568] uppercase tracking-wider">
+                  <th className="py-4 px-6 text-xs font-bold text-[#4A5568] uppercase tracking-widest">
                     Rôle
                   </th>
-                  <th className="p-5 text-sm font-semibold text-right text-[#4A5568] uppercase tracking-wider">
+                  <th className="py-4 px-6 text-xs font-bold text-right text-[#4A5568] uppercase tracking-widest">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {employees.map((employee) => {
-                  // Préparation sécurisée de la Server Action liée à l'ID de cet employé spécifique
                   const revokeEmployeeAction = revokeEmployee.bind(null, employee.id);
 
                   return (
-                    <tr key={employee.id} className="hover:bg-slate-50/50 transition-colors">
-                      <td className="p-5 text-[16px] font-medium text-[#0A1629]">
+                    <tr key={employee.id} className="hover:bg-slate-50/40 transition-colors group">
+                      {/* Nom complet */}
+                      <td className="py-4 px-6 text-[15px] font-medium text-[#0A1629]">
                         {employee.full_name}
                       </td>
-                      <td className="p-5">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#9D00E7]/10 text-[#9D00E7] capitalize">
+
+                      {/* Badge de Rôle */}
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#9D00E7]/10 text-[#9D00E7] capitalize tracking-wide">
                           {employee.role === 'employee' ? 'Employé' : employee.role}
                         </span>
                       </td>
-                      <td className="p-5 text-right">
-                        {/* Utilisation directe de l'action préparée */}
+
+                      {/* Action avec bouton et icône poubelle d'image_f773d7.png */}
+                      <td className="py-4 px-6 text-right">
                         <form action={revokeEmployeeAction}>
                           <button
                             type="submit"
-                            className="inline-flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 hover:text-white border border-red-200 hover:border-red-500 hover:bg-red-500 rounded-xl transition-all shadow-sm active:transform active:scale-95 cursor-pointer"
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 border border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl shadow-sm transition-all duration-200 active:transform active:scale-95 cursor-pointer"
                           >
+                            <svg 
+                              className="w-4 h-4 opacity-70 group-hover:text-red-500 transition-colors" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              strokeLinecap="round" 
+                              strokeLinejoin="round"
+                            >
+                              <path d="M3 6h18" />
+                              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                              <line x1="10" y1="11" x2="10" y2="17" />
+                              <line x1="14" y1="11" x2="14" y2="17" />
+                            </svg>
                             Retirer de la boutique
                           </button>
                         </form>

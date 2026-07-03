@@ -1,3 +1,4 @@
+// lib/actions/employee-actions.ts
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
@@ -141,7 +142,8 @@ export async function getEmployeesFromDatabase(): Promise<Employee[]> {
     .from('profiles')
     .select('id, full_name, role')
     .eq('boutique_id', profile.boutique_id)
-    .eq('status', 'active');
+    .eq('status', 'active')
+    .neq('id', user.id); // Exclut l'utilisateur connecté (owner) du tableau
 
   if (error) throw new Error(error.message);
   return (data as Employee[]) || [];
