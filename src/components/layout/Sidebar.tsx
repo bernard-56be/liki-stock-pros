@@ -13,9 +13,9 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/dashboard', label: 'Accueil' },
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
   { href: '/dashboard/owner/validation', label: 'Validation' },
+{ href: '/dashboard/manage-employees', label: 'Gestion des employés' },
   { href: '/notifications', label: 'Notifications' },
   { href: '/settings', label: 'Paramètres' }, 
-  
 ];
 
 const employeeNav: NavItem[] = [

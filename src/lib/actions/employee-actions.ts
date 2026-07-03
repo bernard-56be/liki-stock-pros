@@ -235,3 +235,39 @@ export async function rejectEmployee(employeeId: string) {
   revalidatePath('/dashboard/owner/validation');
   return { success: true, message: 'Employé refusé et supprimé' };
 }
+
+// ─── 6. Révoquer un employé (Tâche 2 - Clôture) ───────
+export async function revokeEmployee(employeeId: string): Promise<void> {
+  const supabase = await createClient();
+
+  // 1. Vérifier l'utilisateur connecté
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) return;
+
+  // 2. Vérifier que l'utilisateur connecté est bien le propriétaire de la boutique
+  const { data: currentUserProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('boutique_id, role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !currentUserProfile?.boutique_id || currentUserProfile.role !== 'owner') {
+    return;
+  }
+
+  // 3. Mise à jour : boutique_id à null, rôle réinitialisé et statut à 'none' ou 'pending' 
+  // pour casser le filtre d'affichage de getEmployeesFromDatabase immédiatement !
+  await supabase
+    .from('profiles')
+    .update({ 
+      boutique_id: null,
+      role: 'employee',   // Rôle réinitialisé d'après les specs de Bernard
+      status: 'pending'   // Retire le flag 'active' pour sortir immédiatement du tableau
+    })
+    .eq('id', employeeId)
+    .eq('boutique_id', currentUserProfile.boutique_id);
+
+  // 4. Double revalidation des routes pour être certain de forcer le rafraîchissement Next.js
+  revalidatePath('/dashboard/manage-employees');
+  revalidatePath('/dashboard/employes');
+}
