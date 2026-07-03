@@ -18,6 +18,10 @@ export interface DailyReportData {
     ca_usd: number
     remises: number
   }[]
+  topProducts: {
+    product_name: string
+    total_vendus: number
+  }[]
 }
 
 export interface ActionResponse {
@@ -75,10 +79,18 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
     if (s.sale_currency === 'CDF') total_cdf += Number(s.total_amount)
   })
 
+  // Top 5 produits
+  const { data: topProducts } = await supabase
+    .from('vue_top_produits_vendus')
+    .select('*')
+    .limit(5)
+
+  // Filtrer uniquement les employés
   const { data: employees } = await supabase
     .from('profiles')
     .select('id, full_name')
     .eq('boutique_id', profile.boutique_id)
+    .eq('role', 'employee')
 
   const par_employe = []
   if (employees) {
@@ -142,18 +154,8 @@ export async function getDailyReportData(dateStr?: string): Promise<DailyReportD
     total_cdf,
     exchange_rate: rate,
     par_employe,
+    topProducts: topProducts || [],
   }
-  
-}
-
-export interface ActionResponse {
-  success: boolean;
-  message?: string;
-  error?: string;
-  limitReached?: boolean; // Ajoutez cette ligne
-  currentCount?: number;  // Ajoutez cette ligne
-  maxAllowed?: number;    // Ajoutez cette ligne
-  subscription?: string;  // Ajoutez cette ligne
 }
 
 // ---- Génération du rapport PDF ----
@@ -183,10 +185,10 @@ export async function generateDailyReportPdf(dateStr?: string): Promise<string> 
   const cardWidth = (pageWidth - 30) / 2
   const cardHeight = 28
   const cards = [
-    { label: 'Chiffre d\'Affaires', value: `$${data.chiffre_affaires.toFixed(2)}`, sub: `${(data.chiffre_affaires * rate).toLocaleString('fr-FR')} FC`, color: '#10B981' },
-    { label: 'Benefice Net', value: `$${data.benefice_net.toFixed(2)}`, sub: `${(data.benefice_net * rate).toLocaleString('fr-FR')} FC`, color: '#3B82F6' },
-    { label: 'Percu en USD', value: `$${data.total_usd.toLocaleString()}`, sub: '', color: '#8B5CF6' },
-    { label: 'Percu en CDF', value: `${data.total_cdf.toLocaleString()} FC`, sub: '', color: '#F59E0B' },
+    { label: "Chiffre d'Affaires", value: `$ ${data.chiffre_affaires.toFixed(2)}`, sub: `${(data.chiffre_affaires * rate).toLocaleString('fr-FR').replace(/\s/g, ' ')} FC`, color: '#10B981' },
+    { label: 'Benefice Net', value: `$ ${data.benefice_net.toFixed(2)}`, sub: `${(data.benefice_net * rate).toLocaleString('fr-FR').replace(/\s/g, ' ')} FC`, color: '#3B82F6' },
+    { label: 'Percu en USD', value: `$ ${data.total_usd.toLocaleString('fr-FR').replace(/\s/g, ' ')}`, sub: '', color: '#8B5CF6' },
+    { label: 'Percu en CDF', value: `${data.total_cdf.toLocaleString('fr-FR').replace(/\s/g, ' ')} FC`, sub: '', color: '#F59E0B' },
   ]
 
   cards.forEach((card, i) => {
@@ -222,65 +224,110 @@ export async function generateDailyReportPdf(dateStr?: string): Promise<string> 
 
   y += 2 * cardHeight + 24
 
-  // ---- Section Détail par Employé ----
+  // ---- Section Top 5 Produits ----
+  // ---- Section Top 5 Produits ----
+if (data.topProducts && data.topProducts.length > 0) {
+  y += 6
   doc.setFontSize(14)
   doc.setTextColor(30, 41, 59)
   doc.setFont('helvetica', 'bold')
-  doc.text('Detail par Employe', 10, y)
-  y += 8
+  doc.text('Top 5 Produits Vendus', 10, y)
+  y += 10
 
-  const headers = ['Employe', 'Produits', 'CA Genere', 'Remises']
-  const colWidths = [60, 25, 60, 35]
-  const tableStartX = 10
+  const maxVendus = Math.max(...data.topProducts.map(p => p.total_vendus), 1)
+  const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6']
+  const maxBarWidth = pageWidth - 90 // Limite stricte pour ne pas dépasser
 
-  doc.setFillColor(30, 41, 59)
-  doc.rect(tableStartX, y, pageWidth - 20, 10, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(8)
-  doc.setFont('helvetica', 'bold')
-  let headerX = tableStartX + 3
-  headers.forEach((header, i) => {
-    doc.text(header, headerX, y + 7)
-    headerX += colWidths[i]
-  })
+  data.topProducts.forEach((p, i) => {
+    const barWidth = Math.min((p.total_vendus / maxVendus) * maxBarWidth, maxBarWidth)
+    const color = colors[i] || '#3B82F6'
 
-  y += 11
+    // Fond de la ligne
+    doc.setFillColor(248, 250, 252)
+    doc.roundedRect(10, y - 2, pageWidth - 20, 10, 3, 3, 'F')
 
-  doc.setFont('helvetica', 'normal')
-  let totalProduits = 0, totalRemises = 0
-
-  data.par_employe.forEach((emp, i) => {
-    if (i % 2 === 0) {
-      doc.setFillColor(248, 250, 252)
-      doc.rect(tableStartX, y, pageWidth - 20, 8, 'F')
-    }
-    doc.setTextColor(30, 41, 59)
+    // Nom du produit
     doc.setFontSize(8)
-    let rowX = tableStartX + 3
+    doc.setTextColor(30, 41, 59)
+    doc.setFont('helvetica', 'bold')
+    doc.text(p.product_name.substring(0, 22), 14, y + 4)
 
-    doc.text(emp.nom.substring(0, 25), rowX, y + 5.5)
-    rowX += colWidths[0]
-    doc.text(emp.produits_vendus.toString(), rowX, y + 5.5)
-    rowX += colWidths[1]
-    const caText = `${emp.ca_cdf.toLocaleString('fr-FR')} FC / $${emp.ca_usd.toFixed(2)}`
-    doc.text(caText.substring(0, 28), rowX, y + 5.5)
-    rowX += colWidths[2]
-    doc.text(emp.remises.toString(), rowX, y + 5.5)
+    // Barre
+    doc.setFillColor(color)
+    doc.roundedRect(65, y, barWidth, 7, 2, 2, 'F')
 
-    totalProduits += emp.produits_vendus
-    totalRemises += emp.remises
-    y += 8
+    // Valeur
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    doc.text(String(p.total_vendus), 65 + barWidth + 3, y + 4)
+
+    y += 14
   })
+}
 
-  // Ligne total
-  doc.setFillColor(240, 249, 255)
-  doc.rect(tableStartX, y, pageWidth - 20, 8, 'F')
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(8)
-  doc.text('TOTAL', tableStartX + 3, y + 5.5)
-  doc.text(totalProduits.toString(), tableStartX + 3 + colWidths[0], y + 5.5)
-  doc.text(`${data.chiffre_affaires.toFixed(2)} $ / ${(data.chiffre_affaires * rate).toLocaleString('fr-FR')} FC`.substring(0, 28), tableStartX + 3 + colWidths[0] + colWidths[1], y + 5.5)
-  doc.text(totalRemises.toString(), tableStartX + 3 + colWidths[0] + colWidths[1] + colWidths[2], y + 5.5)
+  // ---- Section Détail par Employé ----
+  if (data.par_employe.length > 0) {
+    y += 6
+    doc.setFontSize(14)
+    doc.setTextColor(30, 41, 59)
+    doc.setFont('helvetica', 'bold')
+    doc.text('Detail par Employe', 10, y)
+    y += 8
+
+    const headers = ['Employe', 'Produits', 'CA Genere', 'Remises']
+    const colWidths = [60, 25, 60, 35]
+    const tableStartX = 10
+
+    doc.setFillColor(30, 41, 59)
+    doc.rect(tableStartX, y, pageWidth - 20, 10, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(8)
+    doc.setFont('helvetica', 'bold')
+    let headerX = tableStartX + 3
+    headers.forEach((header, i) => {
+      doc.text(header, headerX, y + 7)
+      headerX += colWidths[i]
+    })
+
+    y += 11
+
+    doc.setFont('helvetica', 'normal')
+    let totalProduits = 0, totalRemises = 0
+
+    data.par_employe.forEach((emp, i) => {
+      if (i % 2 === 0) {
+        doc.setFillColor(248, 250, 252)
+        doc.rect(tableStartX, y, pageWidth - 20, 8, 'F')
+      }
+      doc.setTextColor(30, 41, 59)
+      doc.setFontSize(8)
+      let rowX = tableStartX + 3
+
+      doc.text(emp.nom.substring(0, 25), rowX, y + 5.5)
+      rowX += colWidths[0]
+      doc.text(String(emp.produits_vendus), rowX, y + 5.5)
+      rowX += colWidths[1]
+      const caText = `${emp.ca_cdf.toLocaleString('fr-FR').replace(/\s/g, ' ')} FC / $ ${emp.ca_usd.toFixed(2)}`
+      doc.text(caText.substring(0, 30), rowX, y + 5.5)
+      rowX += colWidths[2]
+      doc.text(String(emp.remises), rowX, y + 5.5)
+
+      totalProduits += emp.produits_vendus
+      totalRemises += emp.remises
+      y += 8
+    })
+
+    // Ligne total
+    doc.setFillColor(240, 249, 255)
+    doc.rect(tableStartX, y, pageWidth - 20, 8, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(8)
+    doc.text('TOTAL', tableStartX + 3, y + 5.5)
+    doc.text(String(totalProduits), tableStartX + 3 + colWidths[0], y + 5.5)
+    const totalCA = `$ ${data.chiffre_affaires.toFixed(2)} / ${(data.chiffre_affaires * rate).toLocaleString('fr-FR').replace(/\s/g, ' ')} FC`
+    doc.text(totalCA.substring(0, 30), tableStartX + 3 + colWidths[0] + colWidths[1], y + 5.5)
+    doc.text(String(totalRemises), tableStartX + 3 + colWidths[0] + colWidths[1] + colWidths[2], y + 5.5)
+  }
 
   // Pied de page
   doc.setFontSize(8)
