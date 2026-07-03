@@ -15,9 +15,9 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/dashboard', label: 'Accueil' },
   { href: '/dashboard/owner/inventaire', label: 'Inventaire' },
   { href: '/dashboard/owner/validation', label: 'Validation' },
-{ href: '/dashboard/manage-employees', label: 'Gestion des employés' },
+  { href: '/dashboard/manage-employees', label: 'Gestion des employés' },
   { href: '/notifications', label: 'Notifications' },
-  { href: '/settings', label: 'Paramètres' }, 
+  { href: '/settings', label: 'Paramètres' },
 ];
 
 const employeeNav: NavItem[] = [
@@ -30,19 +30,25 @@ function navForRole(role: DashboardRole): NavItem[] {
   return role === 'owner' ? ownerNav : employeeNav;
 }
 
-export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: string | null }) {
+export function Sidebar({
+  role,
+  shopCode,
+  shopName,
+}: {
+  role: DashboardRole;
+  shopCode?: string | null;
+  shopName?: string | null;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMenuOpen, closeMenu } = useMenu();
   const items = navForRole(role);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Ferme le menu quand on change de route
   useEffect(() => {
     closeMenu();
   }, [pathname, closeMenu]);
 
-  // Overlay pour fermer le menu (mobile)
   useEffect(() => {
     if (!isMenuOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -52,7 +58,6 @@ export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: st
     return () => window.removeEventListener('keydown', onKey);
   }, [isMenuOpen, closeMenu]);
 
-  // Déconnexion
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
@@ -68,12 +73,15 @@ export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: st
     }
   };
 
-  // Formatage du code boutique
-  const displayCode = shopCode ? shopCode.toUpperCase() : 'LIKI-PRO';
+  // Détermination du label et de la valeur affichée selon le rôle
+  const isOwner = role === 'owner';
+  const label = isOwner ? 'Code' : 'Boutique';
+  const displayValue = isOwner
+    ? (shopCode ? shopCode.toUpperCase() : 'LIKI-PRO')
+    : (shopName || 'Boutique inconnue');
 
   return (
     <>
-      {/* Overlay mobile */}
       {isMenuOpen && (
         <div
           className="fixed inset-0 z-30 bg-black/30 md:hidden"
@@ -81,7 +89,6 @@ export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: st
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-200 bg-white/95 p-4 shadow-xl
@@ -90,14 +97,14 @@ export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: st
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* En-tête avec badge boutique */}
+        {/* En-tête dynamique selon le rôle */}
         <div className="mb-6 hidden px-2 md:block">
           <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm border border-white/30 shadow-sm">
             <span className="text-xs font-semibold uppercase tracking-wider text-purple-700/80">
-              Code
+              {label}
             </span>
-            <span className="font-mono text-sm font-bold text-gray-800 tracking-wider">
-              {displayCode}
+            <span className={isOwner ? 'font-mono text-sm font-bold text-gray-800 tracking-wider' : 'text-sm font-bold text-gray-800'}>
+              {displayValue}
             </span>
           </div>
         </div>
@@ -122,7 +129,6 @@ export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: st
           })}
         </nav>
 
-        {/* Pied de sidebar */}
         <div className="mt-4 border-t border-gray-200 pt-3 space-y-2 md:border-white/30">
           <button
             onClick={handleLogout}

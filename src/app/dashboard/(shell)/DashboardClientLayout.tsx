@@ -1,4 +1,3 @@
-// app/dashboard/(shell)/DashboardClientLayout.tsx
 'use client';
 
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
@@ -25,7 +24,8 @@ interface DashboardClientLayoutProps {
   userName: string;
   userAvatar: string | null;
   currentRate: number;
-  shopCode?: string | null; // ← nouvelle prop
+  shopCode?: string | null;
+  shopName?: string | null; 
 }
 
 export function DashboardClientLayout({
@@ -34,7 +34,8 @@ export function DashboardClientLayout({
   userName,
   userAvatar,
   currentRate,
-  shopCode, // ← réception
+  shopCode,
+  shopName, // ← réception
 }: DashboardClientLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -46,7 +47,7 @@ export function DashboardClientLayout({
       <div className="flex min-h-screen flex-col bg-gray-100 w-full">
         <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
         <div className="flex flex-1 flex-col md:flex-row">
-          <Sidebar role={role} shopCode={shopCode} /> {/* ← transmission */}
+          <Sidebar role={role} shopCode={shopCode} shopName={shopName} /> {/* ← transmission */}
           <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
         </div>
       </div>
