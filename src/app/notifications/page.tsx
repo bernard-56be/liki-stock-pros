@@ -7,13 +7,10 @@ export default async function NotificationsPage() {
   const { data: { user } } = await supabase.auth.getUser()
   const { data: profile } = await supabase
     .from('profiles')
-    .select('full_name, role, exchange_rate')
+    .select('full_name, role, exchange_rate, boutique_id')
     .eq('id', user?.id)
     .single()
 
-  const role = (profile?.role as 'owner' | 'employee') || 'employee'
-  const userName = profile?.full_name || 'Utilisateur'
-  const currentRate = profile?.exchange_rate ?? 2200.00
   const role = (profile?.role as 'owner' | 'employee') || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
   const currentRate = profile?.exchange_rate ?? 2850.0;
@@ -51,8 +48,6 @@ export default async function NotificationsPage() {
       userName={userName} 
       userAvatar={null}
       currentRate={currentRate}
-      userAvatar={null} 
-      currentRate={exchangeRate} // <-- Injection de la propriété pour corriger l'erreur TypeScript
       shopCode={shopCode}
       shopName={shopName}
     >
