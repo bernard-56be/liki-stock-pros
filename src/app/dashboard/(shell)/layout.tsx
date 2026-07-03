@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { DashboardClientLayout } from './DashboardClientLayout';
+import { Toaster } from 'react-hot-toast'
 
 export const dynamic = 'force-dynamic';
 
@@ -31,12 +32,15 @@ export default async function DashboardShellLayout({
   const userAvatar = user.user_metadata?.avatar_url || null;
 
   return (
-    <DashboardClientLayout
-      role={role}
-      userName={userName}
-      userAvatar={userAvatar}
-    >
-      {children}
-    </DashboardClientLayout>
+    <>
+      <DashboardClientLayout
+        role={role}
+        userName={userName}
+        userAvatar={userAvatar}
+      >
+        {children}
+      </DashboardClientLayout>
+      <Toaster position="top-center" toastOptions={{ duration: 3000 }} />
+    </>
   );
 }

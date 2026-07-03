@@ -10,14 +10,17 @@ interface SparklineProps {
 const Sparkline: React.FC<SparklineProps> = ({ data, color }) => {
   if (!data || data.length === 0) return null;
 
+  const validData = data.filter(d => typeof d === 'number' && !isNaN(d));
+  if (validData.length === 0) return null;
+
   const width = 100;
   const height = 40;
   const padding = 2;
-  const max = Math.max(...data, 1);
-  const min = Math.min(...data, 0);
+  const max = Math.max(...validData, 1);
+  const min = Math.min(...validData, 0);
 
-  const pointArray = data.map((value, index) => {
-    const x = padding + (index / (data.length - 1)) * (width - padding * 2);
+  const pointArray = validData.map((value, index) => {
+    const x = padding + (index / (validData.length - 1)) * (width - padding * 2);
     const y = height - padding - ((value - min) / (max - min || 1)) * (height - padding * 2);
     return { x, y };
   });
@@ -45,7 +48,7 @@ const Sparkline: React.FC<SparklineProps> = ({ data, color }) => {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-      {lastPoint && (
+      {lastPoint && !isNaN(lastPoint.x) && !isNaN(lastPoint.y) && (
         <circle
           cx={lastPoint.x}
           cy={lastPoint.y}
