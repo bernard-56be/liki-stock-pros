@@ -272,3 +272,50 @@ export async function revokeEmployee(employeeId: string): Promise<void> {
   revalidatePath('/dashboard/manage-employees');
   revalidatePath('/dashboard/employes');
 }
+
+// ─── 7. Supprimer définitivement le compte d'un employé ───
+export async function removeAndDestroyEmployee(employeeId: string): Promise<ActionResponse> {
+  const supabase = await createClient();
+
+  // 1. Vérifier l'utilisateur connecté (celui qui clique)
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return { success: false, error: 'Non authentifié' };
+  }
+
+  // 2. Vérifier que l'utilisateur connecté est bien le propriétaire (owner)
+  const { data: currentUserProfile, error: profileError } = await supabase
+    .from('profiles')
+    .select('boutique_id, role')
+    .eq('id', user.id)
+    .single();
+
+  if (profileError || !currentUserProfile?.boutique_id || currentUserProfile.role !== 'owner') {
+    return { success: false, error: 'Seul le propriétaire peut supprimer un compte employé' };
+  }
+
+  // 3. Supprimer le profil de l'employé de la table publique pour nettoyer la base immédiatement
+  const { error: deleteProfileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', employeeId)
+    .eq('boutique_id', currentUserProfile.boutique_id);
+
+  if (deleteProfileError) {
+    console.error('Erreur lors de la suppression du profil:', deleteProfileError);
+    return { success: false, error: 'Impossible de supprimer le profil de la base de données' };
+  }
+
+  // 4. Supprimer définitivement le compte de l'employé des tables d'authentification Supabase via l'API Admin
+  const { error: deleteUserError } = await supabase.auth.admin.deleteUser(employeeId);
+
+  if (deleteUserError) {
+    console.error('Erreur suppression authentification employé:', deleteUserError);
+  }
+
+  // 5. Mettre à jour les vues côté Next.js
+  revalidatePath('/dashboard/manage-employees');
+  revalidatePath('/dashboard/employes');
+
+  return { success: true, message: 'Employé supprimé définitivement avec succès' };
+}

@@ -1,21 +1,20 @@
-import { getEmployeesFromDatabase, revokeEmployee } from "@/lib/actions/employee-actions";
+import { getEmployeesFromDatabase, removeAndDestroyEmployee } from "@/lib/actions/employee-actions";
 
 export default async function ManageEmployeesPage() {
   const employees = await getEmployeesFromDatabase();
 
   return (
     <div className="p-10 max-w-7xl mx-auto space-y-8">
-      {/* En-tête identique à la page de Validation */}
+      {/* En-tête de la page */}
       <div>
         <h1 className="text-[28px] font-bold text-[#0A1629] tracking-tight">
           Gestion des employés
         </h1>
       </div>
 
-      {/* Conteneur principal avec ombre douce et angles arrondis */}
+      {/* Conteneur principal */}
       <div className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] border border-slate-100 overflow-hidden min-h-75 flex flex-col justify-center">
         {employees.length === 0 ? (
-          /* État vide */
           <div className="p-12 flex flex-col items-center justify-center text-center space-y-4">
             <div className="w-12 h-12 rounded-xl bg-[#22C55E]/10 flex items-center justify-center">
               <svg 
@@ -33,7 +32,6 @@ export default async function ManageEmployeesPage() {
             </p>
           </div>
         ) : (
-          /* Tableau des employés */
           <div className="overflow-x-auto w-full align-middle">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -51,25 +49,23 @@ export default async function ManageEmployeesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {employees.map((employee) => {
-                  const revokeEmployeeAction = revokeEmployee.bind(null, employee.id);
+                  // ON PRÉPARE L'ACTION ICI AVEC LA NOUVELLE FONCTION ET L'ID DE L'EMPLOYÉ
+                  const deleteAction = removeAndDestroyEmployee.bind(null, employee.id);
 
                   return (
                     <tr key={employee.id} className="hover:bg-slate-50/40 transition-colors group">
-                      {/* Nom complet */}
                       <td className="py-4 px-6 text-[15px] font-medium text-[#0A1629]">
                         {employee.full_name}
                       </td>
 
-                      {/* Badge de Rôle */}
                       <td className="py-4 px-6">
                         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-[#9D00E7]/10 text-[#9D00E7] capitalize tracking-wide">
                           {employee.role === 'employee' ? 'Employé' : employee.role}
                         </span>
                       </td>
 
-                      {/* Action avec bouton et icône poubelle d'image_f773d7.png */}
                       <td className="py-4 px-6 text-right">
-                        <form action={revokeEmployeeAction}>
+                        <form action={deleteAction}>
                           <button
                             type="submit"
                             className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-blue-600 border border-slate-200 hover:border-red-200 hover:bg-red-50 hover:text-red-600 rounded-xl shadow-sm transition-all duration-200 active:transform active:scale-95 cursor-pointer"
