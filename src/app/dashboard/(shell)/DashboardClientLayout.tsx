@@ -25,7 +25,7 @@ interface DashboardClientLayoutProps {
   userAvatar: string | null;
   currentRate: number;
   shopCode?: string | null;
-  shopName?: string | null; // ← ajout
+  shopName?: string | null; 
 }
 
 export function DashboardClientLayout({

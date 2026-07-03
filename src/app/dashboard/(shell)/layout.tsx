@@ -22,7 +22,7 @@ export default async function DashboardShellLayout({
   let role = user.user_metadata?.role || 'employee';
   let exchangeRate = 2850;
   let shopCode: string | null = null;
-  let shopName: string | null = null; // ← nouvelle variable
+  let shopName: string | null = null; 
 
   // 1. Récupération directe depuis la table boutiques (propriétaire)
   const { data: boutique, error: boutiqueError } = await supabase
@@ -69,7 +69,7 @@ export default async function DashboardShellLayout({
         currentRate={exchangeRate}
         role={role}
         shopCode={shopCode}
-        shopName={shopName} // ← transmission
+        shopName={shopName} 
         userAvatar={userAvatar}
         userName={userName}
       >

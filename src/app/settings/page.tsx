@@ -34,7 +34,7 @@ export default async function SettingsPage() {
   // Modification : On va chercher dynamiquement la boutique et son taux de change réel
   let exchangeRate = 2850.00;
   let shopCode: string | null = null;
-  
+  let shopName: string | null = null;
   // Initialisation des variables d'abonnement avec des valeurs par défaut pour TypeScript
   let subscription = 'BRONZE';
   let max_owners = 1;
@@ -44,12 +44,13 @@ export default async function SettingsPage() {
   // Ajout de la sélection des colonnes d'abonnement pour corriger les erreurs de l'image image_a51a40.png
   const { data: boutiqueData } = await supabase
     .from('boutiques')
-    .select('id, name, exchange_rate, subscription, max_owners, max_employees, boutique_code')
+    .select('id, name, exchange_rate, subscription, max_owners, max_employees, boutique_code, name')
     .or(`id.eq.${profile?.boutique_id},owner_id.eq.${user.id}`)
     .maybeSingle();
 
   if (boutiqueData) {
     exchangeRate = boutiqueData.exchange_rate ?? 2850.00;
+    shopName = boutiqueData.name ?? null;
     subscription = boutiqueData.subscription ?? 'BRONZE';
     max_owners = boutiqueData.max_owners ?? 1;
     max_employees = boutiqueData.max_employees ?? 2;
@@ -68,6 +69,7 @@ export default async function SettingsPage() {
       userAvatar={avatar}
       currentRate={exchangeRate}
       shopCode={shopCode}
+      shopName={shopName}
     >
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
         {/* En-tête */}
