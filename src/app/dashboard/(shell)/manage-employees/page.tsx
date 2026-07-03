@@ -49,8 +49,11 @@ export default async function ManageEmployeesPage() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {employees.map((employee) => {
-                  // ON PRÉPARE L'ACTION ICI AVEC LA NOUVELLE FONCTION ET L'ID DE L'EMPLOYÉ
-                  const deleteAction = removeAndDestroyEmployee.bind(null, employee.id);
+                  // 🌟 MISE À JOUR : Ajout de 'use server' pour rendre la Server Action valide in-line
+                  const deleteAction = async (_formData: FormData): Promise<void> => {
+                    'use server';
+                    await removeAndDestroyEmployee(employee.id);
+                  };
 
                   return (
                     <tr key={employee.id} className="hover:bg-slate-50/40 transition-colors group">

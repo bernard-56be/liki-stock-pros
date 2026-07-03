@@ -319,3 +319,8 @@ export async function removeAndDestroyEmployee(employeeId: string): Promise<Acti
 
   return { success: true, message: 'Employé supprimé définitivement avec succès' };
 }
+
+// ─── 8. Wrapper de suppression pour le formulaire Server Component ───
+export async function removeAndDestroyEmployeeAction(employeeId: string): Promise<void> {
+  await removeAndDestroyEmployee(employeeId);
+}
