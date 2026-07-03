@@ -57,6 +57,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
   const { count, error: stockError } = await supabase
     .from('products')
     .select('*', { count: 'exact', head: true })
+    .eq('boutique_id', profile.boutique_id)
     .lte('quantity', 5)
 
   if (!stockError) outOfStockCount = count || 0
