@@ -29,7 +29,7 @@ function navForRole(role: DashboardRole): NavItem[] {
   return role === 'owner' ? ownerNav : employeeNav;
 }
 
-export function Sidebar({ role }: { role: DashboardRole }) {
+export function Sidebar({ role, shopCode }: { role: DashboardRole; shopCode?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const { isMenuOpen, closeMenu } = useMenu();
@@ -51,14 +51,13 @@ export function Sidebar({ role }: { role: DashboardRole }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [isMenuOpen, closeMenu]);
 
-  // Déconnexion : invalide la session et force le refresh du cache
+  // Déconnexion
   const handleLogout = async () => {
     if (isLoggingOut) return;
     setIsLoggingOut(true);
     try {
       const supabase = createClient();
       await supabase.auth.signOut();
-      // Forcer la redirection pour réévaluer le middleware d'authentification
       router.push('/auth/login');
       router.refresh();
     } catch (error) {
@@ -67,6 +66,9 @@ export function Sidebar({ role }: { role: DashboardRole }) {
       setIsLoggingOut(false);
     }
   };
+
+  // Formatage du code boutique
+  const displayCode = shopCode ? shopCode.toUpperCase() : 'LIKI-PRO';
 
   return (
     <>
@@ -78,7 +80,7 @@ export function Sidebar({ role }: { role: DashboardRole }) {
         />
       )}
 
-      {/* Sidebar elle-même */}
+      {/* Sidebar */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-gray-200 bg-white/95 p-4 shadow-xl
@@ -87,10 +89,16 @@ export function Sidebar({ role }: { role: DashboardRole }) {
           ${isMenuOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         `}
       >
-        {/* Logo / titre visible uniquement sur desktop */}
+        {/* En-tête avec badge boutique */}
         <div className="mb-6 hidden px-2 md:block">
-          <p className="text-xs font-semibold uppercase tracking-wide text-purple-800/80">Liki-Stock</p>
-          <p className="text-lg font-bold text-gray-900">Pro</p>
+          <div className="flex items-center gap-2 rounded-xl bg-white/60 px-3 py-2 backdrop-blur-sm border border-white/30 shadow-sm">
+            <span className="text-xs font-semibold uppercase tracking-wider text-purple-700/80">
+              Code
+            </span>
+            <span className="font-mono text-sm font-bold text-gray-800 tracking-wider">
+              {displayCode}
+            </span>
+          </div>
         </div>
 
         <nav className="flex flex-1 flex-col gap-1">
@@ -113,7 +121,7 @@ export function Sidebar({ role }: { role: DashboardRole }) {
           })}
         </nav>
 
-        {/* Pied de sidebar : rôle + déconnexion */}
+        {/* Pied de sidebar */}
         <div className="mt-4 border-t border-gray-200 pt-3 space-y-2 md:border-white/30">
           <button
             onClick={handleLogout}
