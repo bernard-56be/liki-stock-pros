@@ -2,21 +2,19 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Bell, Settings, User, Menu } from 'lucide-react';
+import { Settings, User, Menu } from 'lucide-react';
 import { useMenu } from '@/app/dashboard/(shell)/DashboardClientLayout';
+import NotificationPopover from '@/components/NotificationPopover';
 
 interface HeaderProps {
   userName: string;
   userAvatar: string | null;
   currentRate: number;
-  currentRate: number; 
 }
 
 export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
   const { toggleMenu } = useMenu();
 
-  // Gestion sécurisée du taux de change : 
-  // Si currentRate est 0 ou null/undefined, on affiche "---" pour éviter NaN
   const isValidRate = typeof currentRate === 'number' && currentRate > 0;
   const formattedRate = isValidRate 
     ? new Intl.NumberFormat('fr-FR').format(currentRate) 
@@ -26,7 +24,6 @@ export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
     <header className="sticky top-0 z-20 border-b bg-white/80 backdrop-blur-md shadow-sm">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         
-        {/* Gauche : bouton menu (mobile) + logo */}
         <div className="flex items-center gap-2">
           <button
             onClick={toggleMenu}
@@ -38,10 +35,8 @@ export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
           <span className="text-xl font-bold text-indigo-600">Liki-Stock Pro</span>
         </div>
 
-        {/* Zone centrale/droite : Actions utilisateur + Pastille Taux */}
         <div className="flex items-center gap-3">
           
-          {/* Pastille visuelle dynamique */}
           <div className={`mr-2 inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold backdrop-blur-sm shadow-sm transition-colors ${
             isValidRate 
               ? 'border-purple-100 bg-purple-50/60 text-purple-700' 
@@ -63,13 +58,8 @@ export function Header({ userName, userAvatar, currentRate }: HeaderProps) {
             </div>
           </div>
 
-          <Link
-            href="/notifications"
-            className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
-            aria-label="Notifications"
-          >
-            <Bell className="h-5 w-5" />
-          </Link>
+          <NotificationPopover />
+
           <Link
             href="/settings"
             className="rounded-full p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
