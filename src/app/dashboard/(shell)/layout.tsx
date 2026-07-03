@@ -5,6 +5,7 @@ import { DashboardClientLayout } from './DashboardClientLayout';
 import { Toaster } from 'react-hot-toast'
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function DashboardShellLayout({
   children,
@@ -12,22 +13,51 @@ export default async function DashboardShellLayout({
   children: ReactNode;
 }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
 
-  if (!user) redirect('/auth/login');
-
-  let role = user.user_metadata?.role;
-  if (!role) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-    role = profile?.role;
+  if (authError || !user) {
+    redirect('/auth/login');
   }
 
-  if (role !== 'owner' && role !== 'employee') redirect('/auth/login');
+  let role = user.user_metadata?.role || 'employee';
+  let exchangeRate = 2850;
+  let shopCode: string | null = null;
 
+  // 1. Récupération directe depuis la table boutiques (propriétaire)
+  const { data: boutique, error: boutiqueError } = await supabase
+    .from('boutiques')
+    .select('id, exchange_rate, boutique_code') // ← ajout de boutique_code
+    .eq('owner_id', user.id)
+    .maybeSingle();
+
+  if (boutique) {
+    exchangeRate = boutique.exchange_rate || 2850;
+    shopCode = boutique.boutique_code || null;
+  } else {
+    // 2. Cas employé : passer par le profil
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, boutique_id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    role = profile?.role || 'employee';
+
+    if (profile?.boutique_id) {
+      const { data: empBoutique } = await supabase
+        .from('boutiques')
+        .select('exchange_rate, boutique_code') // ← ajout du code
+        .eq('id', profile.boutique_id)
+        .maybeSingle();
+
+      if (empBoutique) {
+        exchangeRate = empBoutique.exchange_rate || 2850;
+        shopCode = empBoutique.boutique_code || null;
+      }
+    }
+  }
+
+  // Fallback pour l'affichage utilisateur
   const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'Utilisateur';
   const userAvatar = user.user_metadata?.avatar_url || null;
 

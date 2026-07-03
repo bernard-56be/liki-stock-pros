@@ -8,6 +8,7 @@ interface SparklineProps {
 }
 
 const Sparkline: React.FC<SparklineProps> = ({ data, color }) => {
+  // Protection : données vides ou invalides
   if (!data || data.length === 0) return null;
 
   const validData = data.filter(d => typeof d === 'number' && !isNaN(d));

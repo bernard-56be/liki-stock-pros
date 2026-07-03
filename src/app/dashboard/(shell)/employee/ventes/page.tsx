@@ -9,6 +9,7 @@ import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
 import { saveToCache, getFromCache } from '@/lib/utils/storage';
+import toast from 'react-hot-toast'
 
 const ITEMS_PER_PAGE = 6;
 const EXCHANGE_RATE = 2850.02; 
@@ -26,10 +27,9 @@ type CartItem = {
   minPrice: number;
   maxStock: number;
   imageUrl: string | null;
-  currency: string; // ✅ Ajouté pour conserver la devise dans le panier
+  currency: string;
 };
 
-// ✅ Fonction globale de formatage dynamique (FC ou USD) selon la devise fixée
 const formatPrice = (value: number, currency?: string) => {
   if (currency === 'USD') {
     return `${value.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
@@ -93,17 +93,15 @@ const Pagination = memo(function Pagination({
     </div>
   );
 });
- 
 
 // ---------- Ligne du tableau desktop ----------
 const ProductRow = memo(function ProductRow({
   product,
   onAddToCart,
 }: {
-  product: ExtendedProduct; // ✅ Utilisation du type étendu
+  product: ExtendedProduct;
   onAddToCart: (product: ExtendedProduct) => void;
 }) {
-  // ✅ On garde le prix d'origine fixé sans forcer la conversion en FC
   const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
 
   return (
@@ -137,7 +135,7 @@ const ProductRow = memo(function ProductRow({
       </td>
       <td className="px-4 py-3 text-center text-gray-700">{product.quantity}</td>
       <td className="px-4 py-3 text-right text-gray-700 font-semibold">
-        {formatPrice(rawSalePrice, product.currency)} {/* ✅ Affichage dynamique selon sa propre devise */}
+        {formatPrice(rawSalePrice, product.currency)}
       </td>
       <td className="px-4 py-3 text-right">
         <Button
@@ -160,7 +158,7 @@ const MobileProductCard = memo(function MobileProductCard({
   product,
   onAddToCart,
 }: {
-  product: ExtendedProduct; // ✅ Utilisation du type étendu
+  product: ExtendedProduct;
   onAddToCart: (product: ExtendedProduct) => void;
 }) {
   const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
@@ -198,7 +196,7 @@ const MobileProductCard = memo(function MobileProductCard({
         <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
           <span className="font-bold text-gray-900">Prix vente :</span>
           <span className="text-right font-medium text-gray-700">
-            {formatPrice(rawSalePrice, product.currency)} {/* ✅ Affichage dynamique selon sa propre devise */}
+            {formatPrice(rawSalePrice, product.currency)}
           </span>
         </div>
         <div className="flex justify-end pt-2">
@@ -254,7 +252,7 @@ const CartItemRow = memo(function CartItemRow({
           <div className="flex-1">
             <h4 className="font-medium text-gray-900">{item.name}</h4>
             <p className="text-sm text-gray-600">
-              {formatPrice(item.negotiatedPrice, item.currency)} {/* ✅ Respecte la devise d'origine au panier */}
+              {formatPrice(item.negotiatedPrice, item.currency)}
             </p>
           </div>
         </div>
@@ -289,11 +287,11 @@ const CartItemRow = memo(function CartItemRow({
 
         <div className="flex justify-between text-sm">
           <span className="text-gray-600">Total ligne :</span>
-          <span className="font-semibold text-gray-900">{formatPrice(total, item.currency)}</span> {/* ✅ Total de ligne */}
+          <span className="font-semibold text-gray-900">{formatPrice(total, item.currency)}</span>
         </div>
         {isPriceBelowMin && (
           <p className="text-xs text-red-600">
-            Prix inférieur au minimum autorisé ({formatPrice(item.minPrice, item.currency)}) {/* ✅ Minimum autorisé */}
+            Prix inférieur au minimum autorisé ({formatPrice(item.minPrice, item.currency)})
           </p>
         )}
       </div>
@@ -313,17 +311,16 @@ export default function EmployeeSalesPage() {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // 1. Mise à jour du chargement pour inclure le cache
   useEffect(() => {
     const loadProducts = async () => {
       setIsLoading(true);
       const result = await getProducts();
       if (result.success && result.data) {
         setProducts(result.data);
-        saveToCache('products_cache', result.data); // Sauvegarde automatique du catalogue 
+        saveToCache('products_cache', result.data);
         setError(null);
       } else {
-        const cached = getFromCache('products_cache'); // Récupération en cas d'échec 
+        const cached = getFromCache('products_cache');
         if (cached) setProducts(cached);
         else setError(result.error || 'Erreur de chargement des produits');
       }
@@ -332,9 +329,6 @@ export default function EmployeeSalesPage() {
     loadProducts();
   }, []);
 
-  // Chargement des produits
-
-  // Filtrage + pagination
   const filteredProducts = useMemo(() => {
     if (!searchTerm.trim()) return products;
     const lower = searchTerm.toLowerCase();
@@ -352,7 +346,6 @@ export default function EmployeeSalesPage() {
     setCurrentPage(1);
   }, []);
 
-  // Gestion du panier
   const handleAddToCart = useCallback((product: ExtendedProduct) => {
     const rawSalePrice = Number(product.sale_price ?? product.salePrice) || 0;
     const rawMinPrice = Number(product.min_price ?? product.minPrice) || 0;
@@ -373,11 +366,11 @@ export default function EmployeeSalesPage() {
           id: product.id,
           name: product.name,
           quantity: 1,
-          negotiatedPrice: rawSalePrice, // ✅ Reste dans sa devise d'origine
-          minPrice: rawMinPrice,          // ✅ Reste dans sa devise d'origine
+          negotiatedPrice: rawSalePrice,
+          minPrice: rawMinPrice,
           maxStock: product.quantity,
           imageUrl: product.imageUrl,
-          currency: currentCurrency,      // ✅ Sauvegarde de la devise dans l'item
+          currency: currentCurrency,
         },
       ];
     });
@@ -395,7 +388,6 @@ export default function EmployeeSalesPage() {
     setCart((prev) => prev.filter((item) => item.id !== id));
   }, []);
 
-  // Calculs totaux unifiés (Pour le récapitulatif global du panier)
   const subtotalFc = useMemo(() => {
     return cart.reduce((sum, item) => {
       const priceInFc = item.currency === "USD" ? item.negotiatedPrice * EXCHANGE_RATE : item.negotiatedPrice;
@@ -408,13 +400,12 @@ export default function EmployeeSalesPage() {
   const hasStockExceed = useMemo(() => cart.some((item) => item.quantity > item.maxStock), [cart]);
   const isCartEmpty = cart.length === 0;
 
-  // Finalisation de la vente avec protection hors-ligne
   const handleCheckout = async () => {
     if (!navigator.onLine) {
       alert("Connexion perdue. Vente mise en attente.");
       return;
     }
-     if (cart.length === 0) return;
+    if (cart.length === 0) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -424,27 +415,28 @@ export default function EmployeeSalesPage() {
       let allSuccess = true;
       let errorMessage = "";
 
-      // ✅ Traitement séquentiel robuste pour garantir que chaque article est traité l'un après l'autre
       for (const item of cart) {
         const result = await processSale(
           item.id, 
           item.quantity, 
           item.negotiatedPrice,
-          item.currency as "USD" | "CDF" // On passe dynamiquement la devise de l'article
+          item.currency as "USD" | "CDF"
         );
 
         if (!result.success) {
           allSuccess = false;
           errorMessage = `${item.name}: ${result.message}`;
-          break; // On stoppe dès qu'un produit pose problème pour protéger l'inventaire
+          break;
         }
       }
 
       if (allSuccess) {
-        setSuccessMessage("La vente de tout le panier a été enregistrée avec succès !");
-        setCart([]); // On vide le panier uniquement si TOUT est passé
+        toast.success('Vente finalisée avec succès ! Le stock a été mis à jour.', {
+          icon: '🎉',
+          style: { borderRadius: '10px', background: '#10B981', color: '#fff' },
+        })
+        setCart([]);
         
-        // Rafraîchir l'inventaire visuel
         const updatedProducts = await getProducts();
         if (updatedProducts && updatedProducts.success && updatedProducts.data) {
           setProducts(updatedProducts.data);
@@ -452,10 +444,16 @@ export default function EmployeeSalesPage() {
           setError(updatedProducts?.error || "Impossible de rafraîchir l'inventaire.");
         }
       } else {
+        toast.error(errorMessage, {
+          style: { borderRadius: '10px', background: '#EF4444', color: '#fff' },
+        })
         setError(errorMessage);
       }
     } catch (err) {
       console.error("Erreur lors de la finalisation :", err);
+      toast.error("Une erreur est survenue lors du traitement du panier.", {
+        style: { borderRadius: '10px', background: '#EF4444', color: '#fff' },
+      })
       setError("Une erreur est survenue lors du traitement du panier.");
     } finally {
       setIsSubmitting(false);
