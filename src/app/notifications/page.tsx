@@ -13,7 +13,6 @@ export default async function NotificationsPage() {
 
   const role = (profile?.role as 'owner' | 'employee') || 'employee';
   const userName = profile?.full_name || 'Utilisateur';
-  const currentRate = profile?.exchange_rate ?? 2850.0;
 
   // Récupération dynamique du taux de change depuis la table 'boutiques'
   let exchangeRate = 0;
@@ -47,7 +46,7 @@ export default async function NotificationsPage() {
       role={role} 
       userName={userName} 
       userAvatar={null}
-      currentRate={currentRate}
+      currentRate={exchangeRate}
       shopCode={shopCode}
       shopName={shopName}
     >
