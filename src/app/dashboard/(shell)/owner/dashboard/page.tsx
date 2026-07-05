@@ -1,40 +1,57 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { fetchDashboardData, type DashboardData } from "@/lib/actions/dashboardService";
 import DashboardKpi from "@/components/DashboardKpi";
 import SalesChart from "@/components/SalesChart";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { generateDailyReportPdf } from '@/lib/actions/reports';
+import { Button } from "@/components/ui/button";
+import { CalendarDays, FileDown } from "lucide-react";
 
 export default function OwnerDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [reportDate, setReportDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  const loadData = useCallback(async () => {
+    try {
+      const result = await fetchDashboardData();
+      setData(result);
+      setError(null);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur inconnue";
+      setError(message);
+    }
+  }, []);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        const result = await fetchDashboardData();
-        setData(result);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Erreur inconnue";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
+    let isMounted = true;
+
+    const init = async () => {
+      setLoading(true);
+      await loadData();
+      if (isMounted) setLoading(false);
     };
-    load();
-  }, []);
+    init();
+
+    // Rafraîchit toutes les 5 secondes
+    const interval = setInterval(() => {
+      loadData();
+    }, 5000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [loadData]);
 
   const handleDownloadReport = async () => {
     try {
-      const pdfDataUri = await generateDailyReportPdf(reportDate);
+      const pdfDataUri = await generateDailyReportPdf();
       const a = document.createElement("a");
       a.href = pdfDataUri;
-      a.download = `rapport-caisse-${reportDate}.pdf`;
+      a.download = `rapport-caisse-${new Date().toISOString().split('T')[0]}.pdf`;
       a.click();
     } catch (err) {
       console.error(err);
@@ -62,25 +79,28 @@ export default function OwnerDashboardPage() {
   return (
     <NotificationProvider>
       <div className="min-h-screen bg-gray-50 p-4 md:p-8 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
-          <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={reportDate}
-              onChange={(e) => setReportDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-            />
-            <button
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center h-9.25 px-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm text-gray-700">
+              <CalendarDays className="w-4 h-4 text-indigo-500 mr-2" />
+              <span className="font-medium">
+                {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </span>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
               onClick={handleDownloadReport}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+              className="h-13.25 px-3 flex items-center gap-2 text-sm rounded-xl"
             >
-              📋 Télécharger le rapport
-            </button>
+              <FileDown className="w-4 h-4" />
+              <span>Télécharger le rapport</span>
+            </Button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <DashboardKpi
             title="💰 Chiffre d'Affaires Global"
             value={`${caUSD.toFixed(2)} $`}
