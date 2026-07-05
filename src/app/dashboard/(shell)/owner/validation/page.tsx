@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { approveEmployee, rejectEmployee } from '@/lib/actions/employee-actions';
 
-// Interface stricte pour éviter le type 'any'
 interface PendingEmployee {
   id: string;
   full_name: string;
@@ -45,7 +44,7 @@ export default function OwnerValidationPage() {
     setLoading(false);
   };
 
-  // Récupérer les infos d'abonnement
+  // ✅ Récupérer les infos d'abonnement (corrigé avec boutiques)
   const fetchSubscriptionInfo = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -59,8 +58,9 @@ export default function OwnerValidationPage() {
 
       if (!profile?.boutique_id) return;
 
+      // ✅ Utiliser boutiques au lieu de shops
       const { data: shop } = await supabase
-        .from('shops')
+        .from('boutiques')
         .select('subscription')
         .eq('id', profile.boutique_id)
         .single();
@@ -84,17 +84,16 @@ export default function OwnerValidationPage() {
         plan: subscription,
       });
     } catch (err) {
-      console.error(err);
+      console.error('Erreur fetchSubscriptionInfo:', err);
     }
   };
 
   useEffect(() => {
     fetchPendingEmployees();
     fetchSubscriptionInfo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Gestion de la validation avec vérification de l'offre
+  // Gestion de la validation
   const handleAcceptEmployee = async (employeeId: string) => {
     setActionLoading(employeeId);
     setError(null);
@@ -124,7 +123,7 @@ export default function OwnerValidationPage() {
     }
   };
 
-  // Gestion du refus de l'employé (suppression définitive)
+  // Gestion du refus
   const handleRejectEmployee = async (employeeId: string) => {
     setActionLoading(employeeId);
     setError(null);
@@ -164,7 +163,6 @@ export default function OwnerValidationPage() {
         )}
       </div>
       
-      {/* Messages */}
       {error && (
         <div className="bg-red-50 border border-red-300 rounded-lg p-4 mb-4">
           <p className="text-red-700">{error}</p>
