@@ -82,17 +82,18 @@ export default function SettingsClient({
     },
   };
 
+  // ✅ PLAN FEATURES CORRIGÉES
   const planFeatures: Record<string, { included: string[]; notIncluded: string[] }> = {
     BRONZE: {
-      included: ['1 Propriétaire', '1 Employé', 'Gestion de stock', 'Tableau de bord'],
-      notIncluded: ['Rapports PDF', 'Support prioritaire', 'Multi-boutiques']
+      included: ['1 Propriétaire', '1 Employé', 'Gestion de stock', 'Tableau de bord', 'Rapports PDF'],
+      notIncluded: ['Support prioritaire', 'Multi-boutiques', 'Plus de 1 employé']
     },
     SILVER: {
       included: ['2 Propriétaires', '4 Employés', 'Rapports PDF', 'Support prioritaire'],
       notIncluded: ['Multi-boutiques']
     },
     GOLD: {
-      included: ['2 Propriétaires', '10 Employés', 'Multi-boutiques', 'Support 24/7'],
+      included: ['2 Propriétaires', '10 Employés', 'Multi-boutiques', 'Support 24/7', 'Rapports PDF'],
       notIncluded: []
     },
   };
@@ -271,7 +272,7 @@ export default function SettingsClient({
                     </div>
                   </div>
 
-                  {/* Avantages / Inconvénients */}
+                  {/* Avantages / Inconvénients corrigés */}
                   <div className="border-t border-gray-200 pt-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
@@ -318,8 +319,8 @@ export default function SettingsClient({
                       <span>Limite de propriétaires atteinte. Passez à l'offre supérieure.</span>
                     </div>
                   )}
-                  
-                  {/* Bouton Voir les offres (violet comme les onglets) */}
+
+                  {/* Bouton Voir les offres */}
                   <div className="pt-2 border-t border-gray-200">
                     <Link 
                       href="/pricing" 

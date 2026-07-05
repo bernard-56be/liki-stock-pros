@@ -84,14 +84,19 @@ export async function approveEmployee(employeeId: string) {
     };
   }
 
-  // Approuver l'employé
+  // ✅ CORRECTION : Approuver l'employé SANS filtrer par boutique_id (car il n'en a pas encore)
   const { error: updateError } = await supabase
     .from('profiles')
-    .update({ status: 'active' })
-    .eq('id', employeeId)
-    .eq('boutique_id', profile.boutique_id);
+    .update({ 
+      status: 'active', 
+      boutique_id: profile.boutique_id  // ← On lui assigne la boutique ici
+    })
+    .eq('id', employeeId);
 
-  if (updateError) throw new Error('Erreur lors de l\'approbation');
+  if (updateError) {
+    console.error('Erreur update:', updateError);
+    throw new Error(`Erreur lors de l'approbation: ${updateError.message}`);
+  }
 
   revalidatePath('/dashboard/owner/validation');
   return { success: true, message: 'Employé approuvé avec succès' };
@@ -143,7 +148,7 @@ export async function getEmployeesFromDatabase(): Promise<Employee[]> {
     .select('id, full_name, role')
     .eq('boutique_id', profile.boutique_id)
     .eq('status', 'active')
-    .neq('id', user.id); // Exclut l'utilisateur connecté (owner) du tableau
+    .neq('id', user.id);
 
   if (error) throw new Error(error.message);
   return (data as Employee[]) || [];
@@ -237,15 +242,13 @@ export async function rejectEmployee(employeeId: string) {
   return { success: true, message: 'Employé refusé et supprimé' };
 }
 
-// ─── 6. Révoquer un employé (Tâche 2 - Clôture) ───────
+// ─── 6. Révoquer un employé ────────────────────────────
 export async function revokeEmployee(employeeId: string): Promise<void> {
   const supabase = await createClient();
 
-  // 1. Vérifier l'utilisateur connecté
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) return;
 
-  // 2. Vérifier que l'utilisateur connecté est bien le propriétaire de la boutique
   const { data: currentUserProfile, error: profileError } = await supabase
     .from('profiles')
     .select('boutique_id, role')
@@ -256,19 +259,16 @@ export async function revokeEmployee(employeeId: string): Promise<void> {
     return;
   }
 
-  // 3. Mise à jour : boutique_id à null, rôle réinitialisé et statut à 'none' ou 'pending' 
-  // pour casser le filtre d'affichage de getEmployeesFromDatabase immédiatement !
   await supabase
     .from('profiles')
     .update({ 
       boutique_id: null,
-      role: 'employee',   // Rôle réinitialisé d'après les specs de Bernard
-      status: 'pending'   // Retire le flag 'active' pour sortir immédiatement du tableau
+      role: 'employee',
+      status: 'pending'
     })
     .eq('id', employeeId)
     .eq('boutique_id', currentUserProfile.boutique_id);
 
-  // 4. Double revalidation des routes pour être certain de forcer le rafraîchissement Next.js
   revalidatePath('/dashboard/manage-employees');
   revalidatePath('/dashboard/employes');
 }
@@ -277,13 +277,11 @@ export async function revokeEmployee(employeeId: string): Promise<void> {
 export async function removeAndDestroyEmployee(employeeId: string): Promise<ActionResponse> {
   const supabase = await createClient();
 
-  // 1. Vérifier l'utilisateur connecté (celui qui clique)
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
     return { success: false, error: 'Non authentifié' };
   }
 
-  // 2. Vérifier que l'utilisateur connecté est bien le propriétaire (owner)
   const { data: currentUserProfile, error: profileError } = await supabase
     .from('profiles')
     .select('boutique_id, role')
@@ -294,7 +292,6 @@ export async function removeAndDestroyEmployee(employeeId: string): Promise<Acti
     return { success: false, error: 'Seul le propriétaire peut supprimer un compte employé' };
   }
 
-  // 3. Supprimer le profil de l'employé de la table publique pour nettoyer la base immédiatement
   const { error: deleteProfileError } = await supabase
     .from('profiles')
     .delete()
@@ -306,21 +303,19 @@ export async function removeAndDestroyEmployee(employeeId: string): Promise<Acti
     return { success: false, error: 'Impossible de supprimer le profil de la base de données' };
   }
 
-  // 4. Supprimer définitivement le compte de l'employé des tables d'authentification Supabase via l'API Admin
   const { error: deleteUserError } = await supabase.auth.admin.deleteUser(employeeId);
 
   if (deleteUserError) {
     console.error('Erreur suppression authentification employé:', deleteUserError);
   }
 
-  // 5. Mettre à jour les vues côté Next.js
   revalidatePath('/dashboard/manage-employees');
   revalidatePath('/dashboard/employes');
 
   return { success: true, message: 'Employé supprimé définitivement avec succès' };
 }
 
-// ─── 8. Wrapper de suppression pour le formulaire Server Component ───
+// ─── 8. Wrapper de suppression ──────────────────────────
 export async function removeAndDestroyEmployeeAction(employeeId: string): Promise<void> {
   await removeAndDestroyEmployee(employeeId);
 }

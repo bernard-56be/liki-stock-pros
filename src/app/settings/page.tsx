@@ -26,8 +26,10 @@ export default async function SettingsPage() {
   let subscription = 'BRONZE';
   let max_owners = 1;
   let max_employees = 1;
-  let exchangeRate = 0;
+  let exchangeRate = 2850;
   let shopCode: string | null = null;
+  let currentOwners = 0;
+  let currentEmployees = 0;
 
   if (role === 'owner' && profile?.boutique_id) {
     const { data: boutique } = await supabase
@@ -40,9 +42,29 @@ export default async function SettingsPage() {
     subscription = boutique?.subscription || 'BRONZE';
     max_owners = boutique?.max_owners || 1;
     max_employees = boutique?.max_employees || 1;
-    exchangeRate = boutique?.exchange_rate ?? exchangeRate;
+    exchangeRate = boutique?.exchange_rate ?? 2850;
     shopCode = boutique?.boutique_code || null;
+
+    // ✅ Compter les propriétaires et employés actifs
+    const { count: ownersCount } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('boutique_id', profile.boutique_id)
+      .in('role', ['owner', 'associe'])
+      .eq('status', 'active');
+
+    const { count: employeesCount } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true })
+      .eq('boutique_id', profile.boutique_id)
+      .eq('role', 'employee')
+      .eq('status', 'active');
+
+    currentOwners = ownersCount || 0;
+    currentEmployees = employeesCount || 0;
   }
+
+  const isOwner = role === 'owner';
 
   return (
     <DashboardClientLayout
@@ -52,13 +74,32 @@ export default async function SettingsPage() {
       currentRate={exchangeRate}
       shopCode={shopCode}
     >
-      <div className="p-4 md:p-6 lg:p-8">
+      <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">⚙️ Paramètres</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Gérez votre compte et vos préférences
+            </p>
+          </div>
+        </div>
+
+        {/* SettingsClient avec toutes les infos */}
         <SettingsClient
           role={role}
           initialName={userName}
           initialBoutique={boutiqueName}
+          shopCode={shopCode}
           initialRate={exchangeRate}
           initialCurrency={defaultCurrency}
+          subscriptionInfo={{
+            plan: subscription,
+            max_owners: max_owners,
+            max_employees: max_employees,
+            current_owners: currentOwners,
+            current_employees: currentEmployees,
+            shop_name: boutiqueName,
+          }}
         />
       </div>
     </DashboardClientLayout>

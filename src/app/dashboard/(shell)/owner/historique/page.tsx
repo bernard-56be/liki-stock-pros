@@ -10,7 +10,9 @@ type SaleItem = {
   id: string;
   product_name: string;
   quantity: number;
-  price: number;
+  unit_price: number;
+  total_price: number;
+  currency?: 'USD' | 'CDF';
 };
 
 type Sale = {
@@ -22,6 +24,8 @@ type Sale = {
   seller_name?: string;
   items: SaleItem[];
   expanded?: boolean;
+  exchange_rate?: number;
+  total_amount_fc?: number;
 };
 
 type Profile = {
@@ -36,12 +40,44 @@ export default function SalesHistoryPage() {
   const [error, setError] = useState<string | null>(null);
   const supabase = createClient();
 
+  const [defaultRate, setDefaultRate] = useState(2850);
+
   useEffect(() => {
-    fetchSales();
+    const fetchRate = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('boutique_id')
+          .eq('id', user.id)
+          .single();
+
+        if (profile?.boutique_id) {
+          const { data: shop } = await supabase
+            .from('boutiques')
+            .select('exchange_rate')
+            .eq('id', profile.boutique_id)
+            .single();
+          if (shop?.exchange_rate) {
+            setDefaultRate(shop.exchange_rate);
+          }
+        }
+      } catch (error) {
+        console.error('Erreur de chargement du taux:', error);
+      }
+    };
+
+    fetchRate();
   }, []);
 
+  useEffect(() => {
+    fetchSales();
+  }, [defaultRate]);
+
   const toggleExpand = (saleId: string) => {
-    setSales(prev => prev.map(sale => 
+    setSales(prev => prev.map(sale =>
       sale.id === saleId ? { ...sale, expanded: !sale.expanded } : sale
     ));
   };
@@ -84,6 +120,8 @@ export default function SalesHistoryPage() {
       }
 
       const saleIds = salesData.map(s => s.id);
+
+      // ✅ Récupérer les items d'abord
       const { data: itemsData, error: itemsError } = await supabase
         .from('sale_items')
         .select('*')
@@ -91,32 +129,75 @@ export default function SalesHistoryPage() {
 
       if (itemsError) throw itemsError;
 
+      // ✅ Récupérer les noms des produits séparément
+      const productIds = itemsData ? itemsData.map(item => item.product_id).filter(Boolean) : [];
+      let productMap: Record<string, string> = {};
+
+      if (productIds.length > 0) {
+        const { data: productsData, error: productsError } = await supabase
+          .from('products')
+          .select('id, name')
+          .in('id', productIds);
+
+        if (!productsError && productsData) {
+          productMap = productsData.reduce((acc: Record<string, string>, p: any) => {
+            acc[p.id] = p.name || 'Produit inconnu';
+            return acc;
+          }, {});
+        }
+      }
+
       const itemsBySale: Record<string, SaleItem[]> = {};
       if (itemsData) {
         itemsData.forEach((item) => {
           if (!itemsBySale[item.sale_id]) {
             itemsBySale[item.sale_id] = [];
           }
+          
+          const productName = productMap[item.product_id] || 'Produit inconnu';
+          
           itemsBySale[item.sale_id].push({
             id: item.id,
-            product_name: item.product_name || 'Produit inconnu',
+            product_name: productName,
             quantity: item.quantity || 1,
-            price: item.price || 0,
+            unit_price: item.unit_price || 0,
+            total_price: item.total_price || 0,
+            currency: 'CDF',
           });
         });
       }
 
-      const enrichedSales = salesData.map((sale) => ({
-        ...sale,
-        seller_name: sale.seller_id ? (sellerMap[sale.seller_id] || 'Vendeur inconnu') : 'Vendeur inconnu',
-        items: itemsBySale[sale.id] || [],
-        expanded: false,
-      }));
+      const enrichedSales = salesData.map((sale) => {
+        const items = itemsBySale[sale.id] || [];
+        let calculatedTotalFC = 0;
+        const rateToUse = sale.rate_applied || defaultRate;
+
+        items.forEach(item => {
+          const itemTotal = item.total_price || (item.unit_price * item.quantity);
+          if (item.currency === 'USD') {
+            calculatedTotalFC += itemTotal * rateToUse;
+          } else {
+            calculatedTotalFC += itemTotal;
+          }
+        });
+
+        const totalFC = calculatedTotalFC > 0 ? calculatedTotalFC : sale.total_amount;
+
+        return {
+          ...sale,
+          seller_name: sale.seller_id ? (sellerMap[sale.seller_id] || 'Vendeur inconnu') : 'Vendeur inconnu',
+          items: items,
+          expanded: false,
+          exchange_rate: rateToUse,
+          total_amount_fc: totalFC,
+        };
+      });
 
       setSales(enrichedSales);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erreur de chargement des ventes');
-      console.error('Erreur:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Erreur de chargement des ventes';
+      console.error('Erreur détaillée:', err);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -155,7 +236,6 @@ export default function SalesHistoryPage() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      {/* En-tête */}
       <div className="flex items-center gap-3 mb-6">
         <div className="p-2 bg-purple-50 rounded-xl">
           <Receipt className="h-6 w-6 text-purple-600" />
@@ -168,16 +248,13 @@ export default function SalesHistoryPage() {
         </div>
       </div>
 
-      {/* Contenu */}
       {sales.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-50 flex items-center justify-center">
             <Clock className="w-8 h-8 text-gray-300" />
           </div>
           <h3 className="text-base font-semibold text-gray-800 mb-1">Aucune vente</h3>
-          <p className="text-sm text-gray-500">
-            Aucune vente enregistrée pour le moment.
-          </p>
+          <p className="text-sm text-gray-500">Aucune vente enregistrée pour le moment.</p>
         </div>
       ) : (
         <>
@@ -187,8 +264,7 @@ export default function SalesHistoryPage() {
                 key={sale.id}
                 className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
-                {/* En-tête de la vente */}
-                <div 
+                <div
                   className="p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
                   onClick={() => toggleExpand(sale.id)}
                 >
@@ -215,13 +291,13 @@ export default function SalesHistoryPage() {
                     <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                       <div className="text-right">
                         <div className="font-bold text-lg text-purple-700">
-                          {formatAmount(sale.total_amount, sale.currency || 'CDF')}
+                          {formatAmount(sale.total_amount_fc || sale.total_amount, 'CDF')}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {sale.currency || 'CDF'}
+                          Taux: {sale.exchange_rate || '?'} FC/$
                         </div>
                       </div>
-                      <button 
+                      <button
                         className="p-1 rounded-full hover:bg-gray-200 transition-colors"
                         aria-label={sale.expanded ? 'Réduire' : 'Développer'}
                       >
@@ -235,7 +311,6 @@ export default function SalesHistoryPage() {
                   </div>
                 </div>
 
-                {/* Détails des produits */}
                 {sale.expanded && (
                   <div className="border-t border-gray-100 bg-gray-50/50 px-4 py-3">
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -244,19 +319,29 @@ export default function SalesHistoryPage() {
                     </p>
                     {sale.items.length > 0 ? (
                       <div className="space-y-1.5">
-                        {sale.items.map((item) => (
-                          <div key={item.id} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                              <span className="text-gray-700">{item.product_name}</span>
+                        {sale.items.map((item) => {
+                          const itemTotal = item.total_price || (item.unit_price * item.quantity);
+                          const totalInFC = item.currency === 'USD'
+                            ? itemTotal * (sale.exchange_rate || defaultRate)
+                            : itemTotal;
+
+                          return (
+                            <div key={item.id} className="flex justify-between items-center text-sm">
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-700">{item.product_name}</span>
+                                {item.currency === 'USD' && (
+                                  <span className="text-xs text-gray-400">($)</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 text-gray-600">
+                                <span className="text-xs text-gray-400">× {item.quantity}</span>
+                                <span className="font-medium text-gray-800">
+                                  {totalInFC.toLocaleString()} FC
+                                </span>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-4 text-gray-600">
-                              <span className="text-xs text-gray-400">× {item.quantity}</span>
-                              <span className="font-medium text-gray-800">
-                                {formatAmount(item.price * item.quantity, sale.currency || 'CDF')}
-                              </span>
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-gray-400 italic">Aucun détail de produit disponible</p>
@@ -267,7 +352,6 @@ export default function SalesHistoryPage() {
             ))}
           </div>
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-6 pt-2">
               <button
