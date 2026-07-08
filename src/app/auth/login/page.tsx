@@ -59,7 +59,7 @@ function LoginPageContent() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} method="POST" className="space-y-4">
         <input type="hidden" name="next" value={nextPath} />
         <div className="w-full">
           <label className="block text-xs font-bold text-gray-700 mb-1 ml-1 uppercase">Email</label>
