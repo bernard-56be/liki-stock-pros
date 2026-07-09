@@ -433,8 +433,13 @@ export default function EmployeeSalesPage() {
       if (allSuccess) {
         toast.success('Vente finalisée avec succès ! Le stock a été mis à jour.', {
           icon: '🎉',
-          style: { borderRadius: '10px', background: '#10B981', color: '#fff' },
-        })
+          style: { 
+            borderRadius: '10px', 
+            background: '#8B5CF6', 
+            color: '#fff',
+            fontWeight: '500'
+          },
+        });
         setCart([]);
         
         const updatedProducts = await getProducts();
@@ -446,14 +451,14 @@ export default function EmployeeSalesPage() {
       } else {
         toast.error(errorMessage, {
           style: { borderRadius: '10px', background: '#EF4444', color: '#fff' },
-        })
+        });
         setError(errorMessage);
       }
     } catch (err) {
       console.error("Erreur lors de la finalisation :", err);
       toast.error("Une erreur est survenue lors du traitement du panier.", {
         style: { borderRadius: '10px', background: '#EF4444', color: '#fff' },
-      })
+      });
       setError("Une erreur est survenue lors du traitement du panier.");
     } finally {
       setIsSubmitting(false);
