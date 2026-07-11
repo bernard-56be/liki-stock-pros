@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { History, Clock, User, Package, ChevronDown, ChevronUp, Receipt } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 
 const ITEMS_PER_PAGE = 6;
 
@@ -121,7 +124,6 @@ export default function SalesHistoryPage() {
 
       const saleIds = salesData.map(s => s.id);
 
-      // ✅ Récupérer les items d'abord
       const { data: itemsData, error: itemsError } = await supabase
         .from('sale_items')
         .select('*')
@@ -129,7 +131,6 @@ export default function SalesHistoryPage() {
 
       if (itemsError) throw itemsError;
 
-      // ✅ Récupérer les noms des produits séparément
       const productIds = itemsData ? itemsData.map(item => item.product_id).filter(Boolean) : [];
       let productMap: Record<string, string> = {};
 
@@ -153,16 +154,25 @@ export default function SalesHistoryPage() {
           if (!itemsBySale[item.sale_id]) {
             itemsBySale[item.sale_id] = [];
           }
-          
+
           const productName = productMap[item.product_id] || 'Produit inconnu';
-          
+
+          // ✅ Récupérer la devise du produit
+          const currency = item.currency || 'CDF';
+
+          // ✅ Calcul du prix total en FC pour le total de la vente
+          let totalPriceFC = item.total_price || 0;
+          if (currency === 'USD') {
+            totalPriceFC = item.total_price * defaultRate;
+          }
+
           itemsBySale[item.sale_id].push({
             id: item.id,
             product_name: productName,
             quantity: item.quantity || 1,
             unit_price: item.unit_price || 0,
-            total_price: item.total_price || 0,
-            currency: 'CDF',
+            total_price: totalPriceFC,
+            currency: currency,
           });
         });
       }
@@ -170,15 +180,9 @@ export default function SalesHistoryPage() {
       const enrichedSales = salesData.map((sale) => {
         const items = itemsBySale[sale.id] || [];
         let calculatedTotalFC = 0;
-        const rateToUse = sale.rate_applied || defaultRate;
 
         items.forEach(item => {
-          const itemTotal = item.total_price || (item.unit_price * item.quantity);
-          if (item.currency === 'USD') {
-            calculatedTotalFC += itemTotal * rateToUse;
-          } else {
-            calculatedTotalFC += itemTotal;
-          }
+          calculatedTotalFC += item.total_price;
         });
 
         const totalFC = calculatedTotalFC > 0 ? calculatedTotalFC : sale.total_amount;
@@ -188,7 +192,7 @@ export default function SalesHistoryPage() {
           seller_name: sale.seller_id ? (sellerMap[sale.seller_id] || 'Vendeur inconnu') : 'Vendeur inconnu',
           items: items,
           expanded: false,
-          exchange_rate: rateToUse,
+          exchange_rate: defaultRate,
           total_amount_fc: totalFC,
         };
       });
@@ -227,9 +231,13 @@ export default function SalesHistoryPage() {
   if (error) {
     return (
       <div className="p-6 max-w-6xl mx-auto">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-red-700">
-          <span className="font-medium">⚠️ Erreur :</span> {error}
-        </div>
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <p className="text-red-700">
+              <span className="font-medium">⚠️ Erreur :</span> {error}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -249,20 +257,22 @@ export default function SalesHistoryPage() {
       </div>
 
       {sales.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-50 flex items-center justify-center">
-            <Clock className="w-8 h-8 text-gray-300" />
-          </div>
-          <h3 className="text-base font-semibold text-gray-800 mb-1">Aucune vente</h3>
-          <p className="text-sm text-gray-500">Aucune vente enregistrée pour le moment.</p>
-        </div>
+        <Card className="border-gray-100 shadow-sm">
+          <CardContent className="p-12 text-center">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-50 flex items-center justify-center">
+              <Clock className="w-8 h-8 text-gray-300" />
+            </div>
+            <h3 className="text-base font-semibold text-gray-800 mb-1">Aucune vente</h3>
+            <p className="text-sm text-gray-500">Aucune vente enregistrée pour le moment.</p>
+          </CardContent>
+        </Card>
       ) : (
         <>
           <div className="space-y-3">
             {paginatedSales.map((sale) => (
-              <div
+              <Card
                 key={sale.id}
-                className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
+                className="border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div
                   className="p-4 cursor-pointer hover:bg-gray-50/50 transition-colors"
@@ -283,9 +293,9 @@ export default function SalesHistoryPage() {
                         <User className="h-3.5 w-3.5" />
                         <span>Vendeur : {sale.seller_name}</span>
                         <span className="text-gray-300">•</span>
-                        <span className="text-gray-400 text-xs">
+                        <Badge variant="outline" className="text-xs text-gray-400">
                           {sale.items.length} article{sale.items.length > 1 ? 's' : ''}
-                        </span>
+                        </Badge>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 ml-4 flex-shrink-0">
@@ -320,23 +330,24 @@ export default function SalesHistoryPage() {
                     {sale.items.length > 0 ? (
                       <div className="space-y-1.5">
                         {sale.items.map((item) => {
-                          const itemTotal = item.total_price || (item.unit_price * item.quantity);
-                          const totalInFC = item.currency === 'USD'
-                            ? itemTotal * (sale.exchange_rate || defaultRate)
-                            : itemTotal;
+                          // ✅ Affichage dans la devise d'origine du produit
+                          const totalInOriginalCurrency = item.unit_price * item.quantity;
+                          const displayCurrency = item.currency === 'USD' ? '$' : 'FC';
 
                           return (
                             <div key={item.id} className="flex justify-between items-center text-sm">
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-700">{item.product_name}</span>
                                 {item.currency === 'USD' && (
-                                  <span className="text-xs text-gray-400">($)</span>
+                                  <Badge variant="outline" className="text-xs text-gray-400">
+                                    $
+                                  </Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-4 text-gray-600">
                                 <span className="text-xs text-gray-400">× {item.quantity}</span>
                                 <span className="font-medium text-gray-800">
-                                  {totalInFC.toLocaleString()} FC
+                                  {totalInOriginalCurrency.toLocaleString()} {displayCurrency}
                                 </span>
                               </div>
                             </div>
@@ -348,29 +359,31 @@ export default function SalesHistoryPage() {
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             ))}
           </div>
 
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-6 pt-2">
-              <button
+              <Button
                 onClick={() => setCurrentPage((p) => p - 1)}
                 disabled={currentPage === 1}
-                className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition"
+                variant="outline"
+                size="sm"
               >
                 ◀ Précédent
-              </button>
+              </Button>
               <span className="text-sm text-gray-500 font-medium">
                 Page {currentPage} sur {totalPages}
               </span>
-              <button
+              <Button
                 onClick={() => setCurrentPage((p) => p + 1)}
                 disabled={currentPage === totalPages}
-                className="px-4 py-2 bg-gray-100 rounded-lg text-sm font-medium text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition"
+                variant="outline"
+                size="sm"
               >
                 Suivant ▶
-              </button>
+              </Button>
             </div>
           )}
         </>
