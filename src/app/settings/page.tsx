@@ -31,7 +31,8 @@ export default async function SettingsPage() {
   let currentOwners = 0;
   let currentEmployees = 0;
 
-  if (role === 'owner' && profile?.boutique_id) {
+  // ✅ Récupérer les infos de la boutique pour TOUS les utilisateurs
+  if (profile?.boutique_id) {
     const { data: boutique } = await supabase
       .from('boutiques')
       .select('name, subscription, max_owners, max_employees, exchange_rate, boutique_code')
@@ -44,8 +45,26 @@ export default async function SettingsPage() {
     max_employees = boutique?.max_employees || 1;
     exchangeRate = boutique?.exchange_rate ?? 2850;
     shopCode = boutique?.boutique_code || null;
+  }
 
-    // ✅ Compter les propriétaires et employés actifs
+  // ✅ Si le profil n'a pas de boutique_id mais que l'utilisateur est owner
+  if (!boutiqueName && role === 'owner') {
+    const { data: boutique } = await supabase
+      .from('boutiques')
+      .select('name, subscription, max_owners, max_employees, exchange_rate, boutique_code')
+      .eq('owner_id', user.id)
+      .maybeSingle();
+
+    boutiqueName = boutique?.name || '';
+    subscription = boutique?.subscription || 'BRONZE';
+    max_owners = boutique?.max_owners || 1;
+    max_employees = boutique?.max_employees || 1;
+    exchangeRate = boutique?.exchange_rate ?? 2850;
+    shopCode = boutique?.boutique_code || null;
+  }
+
+  // ✅ Compter les propriétaires et employés actifs (pour le propriétaire uniquement)
+  if (role === 'owner' && profile?.boutique_id) {
     const { count: ownersCount } = await supabase
       .from('profiles')
       .select('id', { count: 'exact', head: true })
@@ -73,6 +92,7 @@ export default async function SettingsPage() {
       userAvatar={avatar}
       currentRate={exchangeRate}
       shopCode={shopCode}
+      shopName={boutiqueName}
     >
       <div className="p-4 md:p-6 lg:p-8 max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
@@ -84,22 +104,21 @@ export default async function SettingsPage() {
           </div>
         </div>
 
-        {/* SettingsClient avec toutes les infos */}
         <SettingsClient
           role={role}
           initialName={userName}
-          initialBoutique={boutiqueName}
-          shopCode={shopCode}
+          initialBoutique={isOwner ? boutiqueName : ''}
+          shopCode={isOwner ? shopCode : null}
           initialRate={exchangeRate}
           initialCurrency={defaultCurrency}
-          subscriptionInfo={{
+          subscriptionInfo={isOwner ? {
             plan: subscription,
             max_owners: max_owners,
             max_employees: max_employees,
-            current_owners: currentOwners,
-            current_employees: currentEmployees,
+            current_owners: currentOwners,    // ✅ Compteur réel
+            current_employees: currentEmployees, // ✅ Compteur réel
             shop_name: boutiqueName,
-          }}
+          } : undefined}
         />
       </div>
     </DashboardClientLayout>
