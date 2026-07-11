@@ -21,13 +21,15 @@ const ownerNav: NavItem[] = [
   { href: '/dashboard/owner/validation', label: 'Validation', icon: <Users className="h-4 w-4" /> },
   { href: '/dashboard/owner/historique', label: 'Historique', icon: <History className="h-4 w-4" /> },
   { href: '/dashboard/manage-employees', label: 'Gestion des employés', icon: <UserCog className="h-4 w-4" /> },
-  { href: '/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+  // Modification de l'URL ici pour l'owner :
+  { href: '/dashboard/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { href: '/settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ];
 
 const employeeNav: NavItem[] = [
   { href: '/dashboard/employee/ventes', label: 'Ventes', icon: <LayoutDashboard className="h-4 w-4" /> },
-  { href: '/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
+  // Modification de l'URL ici pour l'employé :
+  { href: '/dashboard/notifications', label: 'Notifications', icon: <Bell className="h-4 w-4" /> },
   { href: '/settings', label: 'Paramètres', icon: <Settings className="h-4 w-4" /> },
 ];
 
