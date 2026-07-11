@@ -1,15 +1,14 @@
 'use client';
+
 import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client'; 
 import { Card, CardContent } from '@/components/ui/card'; 
 import { Button } from '@/components/ui/button';
-// Importation des Server Actions
 import { getInitialProfileStatus, signOutAction } from '@/lib/actions/pending';
 
-// Typage strict pour le Realtime (Exigence de la semaine 3)
+// Typage strict pour le Realtime
 type ProfilePayload = {
   new: {
     status: string;
@@ -20,13 +19,18 @@ export default function PendingPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   
   const supabase = createClient();
 
+  // Effect 1 : Charger le statut initial côté serveur
   useEffect(() => {
+    let isMounted = true;
+
     const initPage = async () => {
-      // 1. Appel du Server Action pour le statut initial
       const { user, status, error: serverError } = await getInitialProfileStatus();
+
+      if (!isMounted) return;
 
       if (serverError) {
         setError(serverError);
@@ -34,13 +38,11 @@ export default function PendingPage() {
         return;
       }
 
-      // Si pas d'utilisateur, redirection login
       if (!user) {
         router.push('/auth/login');
         return;
       }
 
-      // Redirection immédiate si déjà actif
       if (status === 'active') {
         router.push('/dashboard/employee/ventes');
         return;
@@ -50,38 +52,47 @@ export default function PendingPage() {
         return;
       }
 
-      // L'utilisateur est bien 'pending', on arrête le loader initial
+      // Stocker l'ID de l'utilisateur pour activer l'écoute temps réel
+      setUserId(user.id);
       setLoading(false);
-
-      // 2. Mise en place de l'écoute Temps Réel (Client-side)
-      const channel = supabase
-        .channel(`profile_${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'profiles',
-            filter: `id=eq.${user.id}`,
-          },
-          (payload: ProfilePayload) => {
-            const newStatus = payload.new.status;
-            if (newStatus === 'active') {
-              router.push('/dashboard/employee/ventes');
-            } else if (newStatus === 'rejected') {
-              setError("Votre compte a été refusé par le propriétaire.");
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
     };
 
     initPage();
-  }, [router, supabase]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [router]);
+
+  // Effect 2 : Mettre en place le Realtime uniquement quand l'ID utilisateur est disponible
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`realtime_profile_${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        (payload: ProfilePayload) => {
+          const newStatus = payload.new.status;
+          if (newStatus === 'active') {
+            router.push('/dashboard/employee/ventes');
+          } else if (newStatus === 'rejected') {
+            setError("Votre compte a été refusé par le propriétaire.");
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, router, supabase]);
 
   if (loading) {
     return (
@@ -101,7 +112,7 @@ export default function PendingPage() {
             variant="outline" 
             className="mt-4 w-full" 
             onClick={async () => { 
-              await signOutAction(); // Utilisation du Server Action
+              await signOutAction();
               router.push('/auth/login'); 
             }}
           >
@@ -118,9 +129,9 @@ export default function PendingPage() {
         <Card className="text-center shadow-lg">
           <CardContent className="pt-8 pb-6">
             <motion.div 
-                animate={{ scale: [1, 1.05, 1] }} 
-                transition={{ repeat: Infinity, duration: 2 }} 
-                className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100"
+              animate={{ scale: [1, 1.05, 1] }} 
+              transition={{ repeat: Infinity, duration: 2 }} 
+              className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100"
             >
               <span className="text-4xl">⏳</span>
             </motion.div>
@@ -135,10 +146,10 @@ export default function PendingPage() {
             </div>
 
             <Button
-              variant="outline" // Correction appliquée (exit variant="ghost")
+              variant="outline"
               className="text-gray-500 hover:text-red-600 w-full"
               onClick={async () => {
-                await signOutAction(); // Utilisation du Server Action
+                await signOutAction();
                 router.push('/auth/login');
               }}
             >
