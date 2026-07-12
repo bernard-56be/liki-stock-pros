@@ -83,8 +83,14 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     if (day.date === yesterdayDate) { caYesterday = day.chiffre_affaires; benefYesterday = day.benefice_net }
   })
 
-  const progressionCA = caYesterday > 0 ? ((caToday - caYesterday) / caYesterday) * 100 : 0
-  const progressionBenefice = benefYesterday > 0 ? ((benefToday - benefYesterday) / benefYesterday) * 100 : 0
+  // Sécurisation : éviter les pourcentages explosifs quand J-1 est à 0
+  const progressionCA = (caYesterday > 0 && caToday > 0)
+    ? Math.round(((caToday - caYesterday) / caYesterday) * 100)
+    : 0
+
+  const progressionBenefice = (benefYesterday > 0 && benefToday > 0)
+    ? Math.round(((benefToday - benefYesterday) / benefYesterday) * 100)
+    : 0
 
   return {
     dailyRevenue: revenue || [],
