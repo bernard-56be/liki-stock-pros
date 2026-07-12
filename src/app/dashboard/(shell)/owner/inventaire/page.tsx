@@ -1,5 +1,4 @@
 'use client';
-
 import {
   useState,
   useMemo,
@@ -59,41 +58,20 @@ export function formatCurrency(amount: number, currency: 'USD' | 'CDF'): string 
 
 const ITEMS_PER_PAGE = 6;
 
-export type ExtendedProduct = Omit<Product, 'currency'> & {
-  currency?: "USD" | "CDF";
-  stock_alerte?: number;
-  purchase_price?: number; 
-  sale_price?: number;     
-  min_price?: number;      
-  imageUrl?: string | null;
-};
-
-type LocalProduct = ExtendedProduct;
-
-// ---------- Composant de ligne Desktop optimisé ----------
+// Composant de ligne Desktop optimisé
 const ProductRow = memo(function ProductRow({
   product,
-  exchangeRate, // Reçoit le taux dynamiquement
+  exchangeRate,
   onEdit,
   onDelete,
 }: {
-  product: LocalProduct;
+  product: Product;
   exchangeRate: number; 
-  onEdit: (product: LocalProduct) => void;
+  onEdit: (product: Product) => void;
   onDelete: (id: string) => void;
 }) {
-  const productCurrency = product?.currency || "USD";
-
-  const purchaseRaw = Number(product?.purchase_price ?? (product as any).purchasePrice) || 0;
-  const saleRaw = Number(product?.sale_price ?? (product as any).salePrice) || 0;
-  const minRaw = Number(product?.min_price ?? (product as any).minPrice) || 0;
-
-  // CHANGEMENT : Utilisation de exchangeRate dynamique au lieu de la constante globale
-  const prixAchatAffichage = convertAmount(purchaseRaw, exchangeRate, productCurrency, productCurrency);
-  const prixVenteAffichage = convertAmount(saleRaw, exchangeRate, productCurrency, productCurrency);
-  const prixMinAffichage = convertAmount(minRaw, exchangeRate, productCurrency, productCurrency);
-
-  const isStockBas = product.quantity <= (product.stock_alerte ?? 5);
+  const productCurrency = product.currency || "USD";
+  const isStockBas = product.quantity <= product.stockAlerte;
 
   return (
     <tr className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors">
@@ -114,7 +92,7 @@ const ProductRow = memo(function ProductRow({
             )}
           </div>
           <div className="flex flex-col items-start gap-0.5">
-            <span className="text-sm font-medium text-gray-900">{product?.name}</span>
+            <span className="text-sm font-medium text-gray-900">{product.name}</span>
             {isStockBas && (
               <span className="inline-flex items-center rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600 ring-1 ring-inset ring-red-600/10">
                 ⚠️ Stock bas
@@ -123,16 +101,15 @@ const ProductRow = memo(function ProductRow({
           </div>
         </div>
       </td>
-      <td className="px-4 py-4 text-center text-gray-600">{product?.quantity}</td>
-      
+      <td className="px-4 py-4 text-center text-gray-600">{product.quantity}</td>
       <td className="px-4 py-4 text-right text-gray-600">
-        {formatCurrency(prixAchatAffichage, productCurrency)}
+        {formatCurrency(product.purchasePrice, productCurrency)}
       </td>
       <td className="px-4 py-4 text-right text-gray-600">
-        {formatCurrency(prixVenteAffichage, productCurrency)}
+        {formatCurrency(product.salePrice, productCurrency)}
       </td>
       <td className="px-4 py-4 text-right text-gray-600">
-        {formatCurrency(prixMinAffichage, productCurrency)}
+        {formatCurrency(product.minPrice, productCurrency)}
       </td>
       <td className="px-4 py-3 text-right">
         <div className="flex justify-end gap-2">
@@ -144,7 +121,7 @@ const ProductRow = memo(function ProductRow({
             <Edit className="h-4 w-4" />
           </button>
           <button
-            onClick={() => onDelete(product?.id)}
+            onClick={() => onDelete(product.id)}
             className="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-red-600"
             aria-label="Supprimer"
           >
@@ -211,14 +188,13 @@ const Pagination = memo(function Pagination({
   );
 });
 
-// ---------- Page principale ----------
 export default function OwnerInventoryPage() {
-  const [products, setProducts] = useState<LocalProduct[]>([]);
-  const [exchangeRate, setExchangeRate] = useState<number>(2850); // État local initialisé à 2850 par défaut
+  const [products, setProducts] = useState<Product[]>([]);
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null); 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<LocalProduct | null>(null);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isLoading, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -226,7 +202,7 @@ export default function OwnerInventoryPage() {
     startTransition(async () => {
       const result = await getProducts();
       if (result.success && result.data) {
-        setProducts(result.data as LocalProduct[]);
+        setProducts(result.data);
         if (result.exchangeRate) {
           setExchangeRate(result.exchangeRate); 
         }
@@ -244,6 +220,7 @@ export default function OwnerInventoryPage() {
   }, [products, searchTerm]);
 
   const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     return filteredProducts.slice(start, start + ITEMS_PER_PAGE);
@@ -275,7 +252,7 @@ export default function OwnerInventoryPage() {
     setIsSheetOpen(true);
   };
 
-  const handleOpenEdit = (product: LocalProduct) => {
+  const handleOpenEdit = (product: Product) => {
     setEditingProduct(product);
     setIsSheetOpen(true);
   };
@@ -285,10 +262,10 @@ export default function OwnerInventoryPage() {
     setEditingProduct(null);
   }, []);
 
-  if (isLoading && products.length === 0) {
+  if ((isLoading && products.length === 0) || exchangeRate === null) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="text-gray-500">Chargement des produits et du taux...</div>
+        <div className="text-gray-500">Chargement des produits et du taux Supabase...</div>
       </div>
     );
   }
@@ -317,7 +294,7 @@ export default function OwnerInventoryPage() {
         </CardHeader>
         <CardContent className="space-y-4 pt-4">
           <SearchBar value={searchTerm} onChange={handleSearch} />
-
+          
           {/* Tableau Desktop */}
           <div className="hidden overflow-x-auto rounded-xl border border-gray-200 bg-white md:block">
             <table className="min-w-full text-sm">
@@ -355,16 +332,7 @@ export default function OwnerInventoryPage() {
           {/* Cartes Mobile */}
           <div className="grid gap-3 md:hidden">
             {paginatedProducts.map((product) => {
-              const productCurrency = product?.currency || "USD";
-              const purchase = Number(product?.purchase_price ?? (product as any).purchasePrice) || 0;
-              const sale = Number(product?.sale_price ?? (product as any).salePrice) || 0;
-              const min = Number(product?.min_price ?? (product as any).minPrice) || 0;
-
-              // Application dynamique pour le mobile
-              const prixAchatAffichage = convertAmount(purchase, exchangeRate, productCurrency, productCurrency);
-              const prixVenteAffichage = convertAmount(sale, exchangeRate, productCurrency, productCurrency);
-              const prixMinAffichage = convertAmount(min, exchangeRate, productCurrency, productCurrency);
-
+              const productCurrency = product.currency || "USD";
               return (
                 <Card key={product.id} className="border border-gray-200 shadow-sm">
                   <CardContent className="space-y-2 p-4">
@@ -387,7 +355,7 @@ export default function OwnerInventoryPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold text-gray-900">{product.name}</h3>
-                          {product.quantity <= (product.stock_alerte || 5) && (
+                          {product.quantity <= product.stockAlerte && (
                             <span className="text-xs bg-red-50 text-red-600 px-2 py-0.5 rounded-full font-medium">Stock bas</span>
                           )}
                         </div>
@@ -397,15 +365,15 @@ export default function OwnerInventoryPage() {
                     <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-sm">
                       <span className="font-bold text-gray-900">Achat :</span>
                       <span className="text-right font-medium text-gray-700">
-                        {formatCurrency(prixAchatAffichage, productCurrency)}
+                        {formatCurrency(product.purchasePrice, productCurrency)}
                       </span>
                       <span className="font-bold text-gray-900">Vente :</span>
                       <span className="text-right font-medium text-gray-700">
-                        {formatCurrency(prixVenteAffichage, productCurrency)}
+                        {formatCurrency(product.salePrice, productCurrency)}
                       </span>
                       <span className="font-bold text-gray-900">Minimum :</span>
                       <span className="text-right font-medium text-gray-700">
-                        {formatCurrency(prixMinAffichage, productCurrency)}
+                        {formatCurrency(product.minPrice, productCurrency)}
                       </span>
                     </div>
                     <div className="flex justify-end gap-2 pt-2">

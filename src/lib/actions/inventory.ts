@@ -4,12 +4,11 @@ import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
 import { randomUUID } from 'crypto';
 
-// 1. AJOUT DE LA CURRENCY DANS LE TYPE PRINCIPAL
 export type Product = {
   id: string;
   name: string;
   quantity: number;
-  currency: 'USD' | 'CDF'; // <-- Ajouté ici
+  currency: 'USD' | 'CDF';
   purchasePrice: number;
   salePrice: number;
   minPrice: number;
@@ -18,9 +17,6 @@ export type Product = {
   isLowStock: boolean;
 };
 
-/**
- * Récupère le boutique_id de l'utilisateur connecté.
- */
 async function getBoutiqueId(): Promise<string> {
   const supabase = await createClient();
   const { data: { user }, error: userError } = await supabase.auth.getUser();
@@ -57,7 +53,7 @@ async function getBoutiqueId(): Promise<string> {
 export async function getProducts(): Promise<{ 
   success: boolean; 
   data?: Product[]; 
-  exchangeRate?: number; // <-- Ajout du taux de change dans la réponse
+  exchangeRate?: number; 
   error?: string 
 }> {
   try {
@@ -73,17 +69,21 @@ export async function getProducts(): Promise<{
 
     if (productsError) throw productsError;
 
-    // 2. Récupération dynamique du taux de change de la boutique
+   // 2. Récupération du taux de change (Correction du nom de la colonne : exchange_rate)
     const { data: boutiqueData, error: boutiqueError } = await supabase
       .from('boutiques')
-      .select('taux_change')
+      .select('exchange_rate') // ✅ On sélectionne le bon nom de colonne
       .eq('id', boutiqueId)
       .single();
 
-    // Fallback à 2850 si aucun taux n'est configuré ou s'il y a une erreur mineure
-    const currentRate = !boutiqueError && boutiqueData?.taux_change ? Number(boutiqueData.taux_change) : 2850;
+    if (boutiqueError) {
+      console.error("[SUPABASE ERROR] Impossible de charger exchange_rate :", boutiqueError.message);
+    }
 
-    // 3. Extraction et mapping de la devise depuis la table
+    // Si pas d'erreur, on utilise boutiqueData.exchange_rate, sinon fallback de sécurité à 2200
+    const currentRate = !boutiqueError && boutiqueData?.exchange_rate ? Number(boutiqueData.exchange_rate) : 2200;
+
+    // 3. Mapping des produits (parfaitement aligné avec le camelCase du frontend)
     const products: Product[] = productsData.map((p) => ({
       id: p.id,
       name: p.name,
@@ -142,17 +142,15 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
     }
 
     const quantity = parseInt(formData.get('quantity') as string) || 0;
-    const currency = (formData.get('currency') as string) || 'USD'; // <-- Récupération de la devise
+    const currency = (formData.get('currency') as string) || 'USD';
     const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
     
-    // VALIDATION STRICTE DES PRIX : Blocage de sécurité Serveur
     if (salePrice > 0 && minPrice >= salePrice) {
       return { success: false, error: "Validation échouée : Le prix minimum doit être strictement inférieur au prix de vente." };
     }
     
-    // Correction ici : prend en charge soit 'min_stock' (formulaire) soit 'stockAlerte'
     const stockAlerte = parseInt(formData.get('min_stock') as string) || 
                         parseInt(formData.get('stockAlerte') as string) || 5;
 
@@ -168,12 +166,11 @@ export async function createProduct(formData: FormData): Promise<{ success: bool
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
-    // 3. INSERTION DE LA DEVISE DANS LA TABLE SUPABASE
     const { error } = await supabase.from('products').insert({
       boutique_id: boutiqueId,
       name: name.trim(),
       quantity,
-      currency, // <-- Sauvegardé en base de données !
+      currency,
       purchase_price: purchasePrice,
       sale_price: salePrice,
       min_price: minPrice,
@@ -202,12 +199,11 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
 
     const name = formData.get('name') as string;
     const quantity = parseInt(formData.get('quantity') as string) || 0;
-    const currency = (formData.get('currency') as string) || 'USD'; // <-- Récupération de la devise
+    const currency = (formData.get('currency') as string) || 'USD';
     const purchasePrice = parseFloat(formData.get('purchasePrice') as string) || 0;
     const salePrice = parseFloat(formData.get('salePrice') as string) || 0;
     const minPrice = parseFloat(formData.get('minPrice') as string) || 0;
     
-    // VALIDATION STRICTE DES PRIX 
     if (salePrice > 0 && minPrice >= salePrice) {
       return { success: false, error: "Validation échouée : Le prix minimum doit être strictement inférieur au prix de vente." };
     }
@@ -227,13 +223,12 @@ export async function updateProduct(formData: FormData): Promise<{ success: bool
       imageUrl = await uploadImage(imageFile, boutiqueId);
     }
 
-    // 4. MISE À JOUR DE LA DEVISE DANS LA TABLE SUPABASE
     const { error } = await supabase
       .from('products')
       .update({
         name: name.trim(),
         quantity,
-        currency, // <-- Sauvegardé en base de données !
+        currency,
         purchase_price: purchasePrice,
         sale_price: salePrice,
         min_price: minPrice,

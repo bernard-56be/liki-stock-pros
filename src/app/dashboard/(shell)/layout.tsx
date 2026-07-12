@@ -20,7 +20,7 @@ export default async function DashboardShellLayout({
   }
 
   let role = user.user_metadata?.role || 'employee';
-  let exchangeRate = 2850;
+  let exchangeRate = 2300;
   let shopCode: string | null = null;
   let shopName: string | null = null; 
 
@@ -53,7 +53,7 @@ export default async function DashboardShellLayout({
         .maybeSingle();
 
       if (empBoutique) {
-        exchangeRate = empBoutique.exchange_rate || 2850;
+        exchangeRate = empBoutique.exchange_rate || 2300;
         shopCode = empBoutique.boutique_code || null;
         shopName = empBoutique.name || null;
       }
