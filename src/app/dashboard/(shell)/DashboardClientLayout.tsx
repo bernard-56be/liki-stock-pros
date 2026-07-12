@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Sidebar, type DashboardRole } from '@/components/layout/Sidebar';
+import { RateProvider } from '@/contexts/RateContext'; // Ajout de l'import
 
 type MenuContextType = {
   isMenuOpen: boolean;
@@ -35,7 +36,7 @@ export function DashboardClientLayout({
   userAvatar,
   currentRate,
   shopCode,
-  shopName, // ← réception
+  shopName,
 }: DashboardClientLayoutProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -43,14 +44,16 @@ export function DashboardClientLayout({
   const closeMenu = useCallback(() => setIsMenuOpen(false), []);
 
   return (
-    <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
-      <div className="flex min-h-screen flex-col bg-gray-100 w-full">
-        <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
-        <div className="flex flex-1 flex-col md:flex-row">
-          <Sidebar role={role} shopCode={shopCode} shopName={shopName} /> {/* ← transmission */}
-          <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
+    <RateProvider rate={currentRate}> {/* Enveloppement avec le Provider */}
+      <MenuContext.Provider value={{ isMenuOpen, toggleMenu, closeMenu }}>
+        <div className="flex min-h-screen flex-col bg-gray-100 w-full">
+          <Header userName={userName} userAvatar={userAvatar} currentRate={currentRate} />
+          <div className="flex flex-1 flex-col md:flex-row">
+            <Sidebar role={role} shopCode={shopCode} shopName={shopName} />
+            <main className="flex-1 overflow-x-hidden p-4 md:p-6">{children}</main>
+          </div>
         </div>
-      </div>
-    </MenuContext.Provider>
+      </MenuContext.Provider>
+    </RateProvider>
   );
 }

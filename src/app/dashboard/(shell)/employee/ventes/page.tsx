@@ -9,10 +9,10 @@ import { AnimatedSheet } from '@/components/ui/AnimatedSheet';
 import { getProducts, type Product } from '@/lib/actions/inventory';
 import { processSale } from '@/lib/actions/process-sale';
 import { saveToCache, getFromCache } from '@/lib/utils/storage';
-import toast from 'react-hot-toast'
+import { useRate } from '@/contexts/RateContext';
+import toast from 'react-hot-toast';
 
 const ITEMS_PER_PAGE = 6;
-const EXCHANGE_RATE = 2850.02; 
 
 interface ExtendedProduct extends Product {
   sale_price?: number;
@@ -301,6 +301,7 @@ const CartItemRow = memo(function CartItemRow({
 
 // ---------- Page principale ----------
 export default function EmployeeSalesPage() {
+  const EXCHANGE_RATE = useRate();
   const [products, setProducts] = useState<ExtendedProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -393,9 +394,9 @@ export default function EmployeeSalesPage() {
       const priceInFc = item.currency === "USD" ? item.negotiatedPrice * EXCHANGE_RATE : item.negotiatedPrice;
       return sum + item.quantity * priceInFc;
     }, 0);
-  }, [cart]);
+  }, [cart, EXCHANGE_RATE]);
 
-  const subtotalUsd = useMemo(() => subtotalFc / EXCHANGE_RATE, [subtotalFc]);
+  const subtotalUsd = useMemo(() => subtotalFc / EXCHANGE_RATE, [subtotalFc, EXCHANGE_RATE]);
   const hasInvalidPrice = useMemo(() => cart.some((item) => item.negotiatedPrice < item.minPrice), [cart]);
   const hasStockExceed = useMemo(() => cart.some((item) => item.quantity > item.maxStock), [cart]);
   const isCartEmpty = cart.length === 0;
