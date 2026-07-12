@@ -14,7 +14,7 @@ const Sparkline: React.FC<SparklineProps> = ({ data, color }) => {
   const validData = data.filter(d => typeof d === 'number' && !isNaN(d));
   if (validData.length === 0) return null;
 
-  const width = 100;
+  const width = 80;
   const height = 40;
   const padding = 2;
   const max = Math.max(...validData, 1);

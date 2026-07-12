@@ -27,7 +27,6 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     let isMounted = true;
-
     const init = async () => {
       setLoading(true);
       await loadData();
@@ -35,15 +34,8 @@ export default function OwnerDashboardPage() {
     };
     init();
 
-    // Rafraîchit toutes les 5 secondes
-    const interval = setInterval(() => {
-      loadData();
-    }, 5000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
+    const interval = setInterval(() => { loadData(); }, 5000);
+    return () => { isMounted = false; clearInterval(interval); };
   }, [loadData]);
 
   const handleDownloadReport = async () => {
@@ -53,9 +45,7 @@ export default function OwnerDashboardPage() {
       a.href = pdfDataUri;
       a.download = `rapport-caisse-${new Date().toISOString().split('T')[0]}.pdf`;
       a.click();
-    } catch (err) {
-      console.error(err);
-    }
+    } catch (err) { console.error(err); }
   };
 
   if (loading) return <div className="min-h-screen bg-gray-50 p-6"><p className="text-gray-600">Chargement...</p></div>;
@@ -82,18 +72,13 @@ export default function OwnerDashboardPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center h-9.25 px-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm text-gray-700">
+            <div className="flex items-center h-[38px] px-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm text-gray-700">
               <CalendarDays className="w-4 h-4 text-indigo-500 mr-2" />
               <span className="font-medium">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              onClick={handleDownloadReport}
-              className="h-13.25 px-3 flex items-center gap-2 text-sm rounded-xl"
-            >
+            <Button variant="primary" size="sm" onClick={handleDownloadReport} className="h-[50px] px-3 flex items-center gap-2 text-sm rounded-xl">
               <FileDown className="w-4 h-4" />
               <span>Télécharger le rapport</span>
             </Button>
@@ -101,19 +86,21 @@ export default function OwnerDashboardPage() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* CA Global : principal en CDF, secondaire en USD */}
           <DashboardKpi
             title="💰 Chiffre d'Affaires Global"
-            value={`${caUSD.toFixed(2)} $`}
-            secondary={`${caCDF.toLocaleString()} FC`}
+            value={`${caCDF.toLocaleString()} FC`}
+            secondary={`${caUSD.toFixed(2)} $`}
             valueColor="text-green-600"
             progression={data.progressionCA}
             sparklineData={caSparkline}
             sparklineColor="#10B981"
           />
+          {/* Bénéfice Net : principal en CDF, secondaire en USD */}
           <DashboardKpi
             title="📈 Bénéfice Net Global"
-            value={`${benefUSD.toFixed(2)} $`}
-            secondary={`${benefCDF.toLocaleString()} FC`}
+            value={`${benefCDF.toLocaleString()} FC`}
+            secondary={`${benefUSD.toFixed(2)} $`}
             valueColor="text-blue-600"
             progression={data.progressionBenefice}
             sparklineData={benefSparkline}
@@ -124,11 +111,13 @@ export default function OwnerDashboardPage() {
             value={data.outOfStockCount || 0}
             valueColor="text-red-600"
           />
+          {/* Total USD : somme stricte des ventes en dollars */}
           <DashboardKpi
             title="💵 Total perçu en USD"
             value={`$${(data.total_usd || 0).toLocaleString()}`}
             valueColor="text-blue-600"
           />
+          {/* Total CDF : somme stricte des ventes en francs */}
           <DashboardKpi
             title="💵 Total perçu en CDF"
             value={`${(data.total_cdf || 0).toLocaleString()} FC`}

@@ -79,10 +79,10 @@ const DashboardKpi: React.FC<DashboardKpiProps> = ({
           )}
         </div>
         {sparklineData && sparklineData.length > 0 && (
-          <div className="ml-2">
-            <Sparkline data={sparklineData} color={sparklineColor} />
-          </div>
-        )}
+  <div className="ml-3 overflow-hidden max-w-[100px]">
+    <Sparkline data={sparklineData} color={sparklineColor} />
+  </div>
+)}
       </div>
 
       {/* Progression */}
