@@ -26,7 +26,7 @@ export default async function SettingsPage() {
   let subscription = 'BRONZE';
   let max_owners = 1;
   let max_employees = 1;
-  let exchangeRate = 2850;
+  let exchangeRate = 2300;
   let shopCode: string | null = null;
   let currentOwners = 0;
   let currentEmployees = 0;
