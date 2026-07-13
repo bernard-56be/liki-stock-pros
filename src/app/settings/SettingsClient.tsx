@@ -308,14 +308,14 @@ export default function SettingsClient({
                   {/* Alertes */}
                   {subInfo.current_employees >= subInfo.max_employees && subInfo.max_employees !== Infinity && (
                     <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>Limite d'employés atteinte. Passez à l'offre supérieure.</span>
                     </div>
                   )}
 
                   {subInfo.current_owners >= subInfo.max_owners && subInfo.max_owners !== Infinity && (
                     <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700">
-                      <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                      <AlertTriangle className="h-4 w-4 shrink-0" />
                       <span>Limite de propriétaires atteinte. Passez à l'offre supérieure.</span>
                     </div>
                   )}

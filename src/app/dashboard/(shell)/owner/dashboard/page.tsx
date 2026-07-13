@@ -73,13 +73,13 @@ export default function OwnerDashboardPage() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-extrabold text-gray-900">📊 Tableau de Bord</h1>
           <div className="flex flex-wrap items-center gap-4">
-            <div className="flex items-center h-[38px] px-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm text-gray-700">
+            <div className="flex items-center h-9.5 px-3 bg-white rounded-xl border border-gray-200 shadow-sm text-sm text-gray-700">
               <CalendarDays className="w-4 h-4 text-indigo-500 mr-2" />
               <span className="font-medium">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>
-            <Button variant="primary" size="sm" onClick={handleDownloadReport} className="h-[50px] px-3 flex items-center gap-2 text-sm rounded-xl">
+            <Button variant="primary" size="sm" onClick={handleDownloadReport} className="h-12.5 px-3 flex items-center gap-2 text-sm rounded-xl">
               <FileDown className="w-4 h-4" />
               <span>Télécharger le rapport</span>
             </Button>

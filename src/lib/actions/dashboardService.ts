@@ -62,7 +62,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
   if (!stockError) outOfStockCount = count || 0
 
-  // ✅ Récupérer les ventes avec les sale_items et les prix d'achat
+  // Récupérer les ventes avec les sale_items et les prix d'achat
   const { data: salesData } = await supabase
     .from('sales')
     .select(`
@@ -84,13 +84,13 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
   let total_usd = 0
   let total_cdf = 0
-  let totalBenefice = 0
   let dailyRevenueMap: Record<string, { chiffre_affaires: number; benefice_net: number }> = {}
 
   salesData?.forEach(sale => {
     let saleTotalUSD = 0
     let saleTotalCDF = 0
-    let saleBenefice = 0
+    let saleGlobalChiffreAffairesCDF = 0 // Pour le calcul du CA Global journalier
+    let saleBeneficeCDF = 0
 
     sale.sale_items?.forEach((item: any) => {
       const quantity = item.quantity || 1
@@ -103,27 +103,33 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       const benefice = itemTotal - itemCost
 
       if (itemCurrency === 'USD') {
+        // Caisse Dollar uniquement
         saleTotalUSD += itemTotal
-        saleTotalCDF += itemTotal * exchangeRate
-        saleBenefice += benefice * exchangeRate
+        
+        // Pour les totaux globaux et bénéfices (convertis en CDF)
+        saleGlobalChiffreAffairesCDF += itemTotal * exchangeRate
+        saleBeneficeCDF += benefice * exchangeRate
       } else {
+        // Caisse Franc Congolais uniquement
         saleTotalCDF += itemTotal
-        saleBenefice += benefice
+        
+        // Pour les totaux globaux et bénéfices
+        saleGlobalChiffreAffairesCDF += itemTotal
+        saleBeneficeCDF += benefice
       }
-
-      totalBenefice += saleBenefice
     })
 
+    // Cumul strict des tiroirs de caisses par devise
     total_usd += saleTotalUSD
     total_cdf += saleTotalCDF
 
-    // Agrégation par jour
+    // Agrégation par jour (Le Chiffre d'affaires Global doit rester en CDF)
     const dateKey = new Date(sale.created_at).toISOString().split('T')[0]
     if (!dailyRevenueMap[dateKey]) {
       dailyRevenueMap[dateKey] = { chiffre_affaires: 0, benefice_net: 0 }
     }
-    dailyRevenueMap[dateKey].chiffre_affaires += saleTotalCDF
-    dailyRevenueMap[dateKey].benefice_net += saleBenefice
+    dailyRevenueMap[dateKey].chiffre_affaires += saleGlobalChiffreAffairesCDF
+    dailyRevenueMap[dateKey].benefice_net += saleBeneficeCDF
   })
 
   // Convertir la map en tableau
@@ -148,7 +154,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     : 0
 
   const progressionBenefice = (benefYesterday > 0 && benefToday > 0)
-    ? Math.round(((benefToday - benefYesterday) / benefYesterday) * 100)
+    ? Math.round(((benefToday - benefYesterday) / (caYesterday || 1)) * 100)
     : 0
 
   return {
