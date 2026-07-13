@@ -57,10 +57,11 @@ export default function OwnerDashboardPage() {
   const today = data.dailyRevenue[0] || { chiffre_affaires: 0, benefice_net: 0 };
   const rate = data.exchange_rate || 2850;
 
-  const caUSD = Number(today.chiffre_affaires) || 0;
-  const benefUSD = Number(today.benefice_net) || 0;
-  const caCDF = caUSD * rate;
-  const benefCDF = benefUSD * rate;
+  // ✅ CORRECTION : chiffre_affaires est déjà en FC
+  const caFC = Number(today.chiffre_affaires) || 0;
+  const benefFC = Number(today.benefice_net) || 0;
+  const caUSD = caFC / rate;
+  const benefUSD = benefFC / rate;
 
   const last7Days = [...data.dailyRevenue].reverse().slice(-7);
   const caSparkline = last7Days.map(d => Number(d.chiffre_affaires) || 0);
@@ -89,7 +90,7 @@ export default function OwnerDashboardPage() {
           {/* CA Global : principal en CDF, secondaire en USD */}
           <DashboardKpi
             title="💰 Chiffre d'Affaires Global"
-            value={`${caCDF.toLocaleString()} FC`}
+            value={`${caFC.toLocaleString()} FC`}
             secondary={`${caUSD.toFixed(2)} $`}
             valueColor="text-green-600"
             progression={data.progressionCA}
@@ -99,7 +100,7 @@ export default function OwnerDashboardPage() {
           {/* Bénéfice Net : principal en CDF, secondaire en USD */}
           <DashboardKpi
             title="📈 Bénéfice Net Global"
-            value={`${benefCDF.toLocaleString()} FC`}
+            value={`${benefFC.toLocaleString()} FC`}
             secondary={`${benefUSD.toFixed(2)} $`}
             valueColor="text-blue-600"
             progression={data.progressionBenefice}

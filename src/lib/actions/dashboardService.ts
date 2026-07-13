@@ -62,28 +62,87 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 
   if (!stockError) outOfStockCount = count || 0
 
-  const { data: sales } = await supabase
+  // ✅ Récupérer les ventes avec les sale_items et les prix d'achat
+  const { data: salesData } = await supabase
     .from('sales')
-    .select('total_amount, sale_currency')
+    .select(`
+      id,
+      created_at,
+      sale_currency,
+      total_amount,
+      sale_items (
+        unit_price,
+        quantity,
+        currency,
+        product_id,
+        products (
+          purchase_price,
+          currency
+        )
+      )
+    `)
 
   let total_usd = 0
   let total_cdf = 0
-  sales?.forEach(sale => {
-    if (sale.sale_currency === 'USD') total_usd += Number(sale.total_amount)
-    if (sale.sale_currency === 'CDF') total_cdf += Number(sale.total_amount)
+  let totalBenefice = 0
+  let dailyRevenueMap: Record<string, { chiffre_affaires: number; benefice_net: number }> = {}
+
+  salesData?.forEach(sale => {
+    let saleTotalUSD = 0
+    let saleTotalCDF = 0
+    let saleBenefice = 0
+
+    sale.sale_items?.forEach((item: any) => {
+      const quantity = item.quantity || 1
+      const unitPrice = item.unit_price || 0
+      const purchasePrice = item.products?.purchase_price || 0
+      const itemCurrency = item.currency || item.products?.currency || 'CDF'
+
+      const itemTotal = unitPrice * quantity
+      const itemCost = purchasePrice * quantity
+      const benefice = itemTotal - itemCost
+
+      if (itemCurrency === 'USD') {
+        saleTotalUSD += itemTotal
+        saleTotalCDF += itemTotal * exchangeRate
+        saleBenefice += benefice * exchangeRate
+      } else {
+        saleTotalCDF += itemTotal
+        saleBenefice += benefice
+      }
+
+      totalBenefice += saleBenefice
+    })
+
+    total_usd += saleTotalUSD
+    total_cdf += saleTotalCDF
+
+    // Agrégation par jour
+    const dateKey = new Date(sale.created_at).toISOString().split('T')[0]
+    if (!dailyRevenueMap[dateKey]) {
+      dailyRevenueMap[dateKey] = { chiffre_affaires: 0, benefice_net: 0 }
+    }
+    dailyRevenueMap[dateKey].chiffre_affaires += saleTotalCDF
+    dailyRevenueMap[dateKey].benefice_net += saleBenefice
   })
+
+  // Convertir la map en tableau
+  const dailyRevenue = Object.entries(dailyRevenueMap).map(([date, values]) => ({
+    date,
+    chiffre_affaires: values.chiffre_affaires,
+    benefice_net: values.benefice_net
+  })).sort((a, b) => b.date.localeCompare(a.date))
 
   const todayDate = new Date().toISOString().split('T')[0]
   const yesterdayDate = new Date(Date.now() - 86400000).toISOString().split('T')[0]
 
   let caToday = 0, caYesterday = 0, benefToday = 0, benefYesterday = 0
 
-  revenue?.forEach(day => {
+  dailyRevenue.forEach(day => {
     if (day.date === todayDate) { caToday = day.chiffre_affaires; benefToday = day.benefice_net }
     if (day.date === yesterdayDate) { caYesterday = day.chiffre_affaires; benefYesterday = day.benefice_net }
   })
 
-  // Sécurisation : éviter les pourcentages explosifs quand J-1 est à 0
   const progressionCA = (caYesterday > 0 && caToday > 0)
     ? Math.round(((caToday - caYesterday) / caYesterday) * 100)
     : 0
@@ -93,7 +152,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     : 0
 
   return {
-    dailyRevenue: revenue || [],
+    dailyRevenue: dailyRevenue.length > 0 ? dailyRevenue : revenue || [],
     topProducts: topProducts || [],
     outOfStockCount,
     exchange_rate: exchangeRate,
