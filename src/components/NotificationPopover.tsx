@@ -86,7 +86,7 @@ export default function NotificationPopover() {
           )}
 
           <a
-            href="/notifications"
+            href="../notifications"
             className="block text-center p-3 text-xs text-blue-600 hover:bg-gray-50 border-t border-gray-100 font-medium"
           >
             Voir toutes les notifications
